@@ -1,4 +1,5 @@
-﻿namespace SqlBulkTools.Enumeration
+﻿// ReSharper disable once CheckNamespace
+namespace SqlBulkTools.Enumeration
 {
     /// <summary>
     /// 

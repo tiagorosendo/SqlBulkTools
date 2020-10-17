@@ -4,8 +4,9 @@ using System.Data.SqlClient;
 using System.Linq.Expressions;
 using System.Reflection;
 using SqlBulkTools.Enumeration;
-
+// ReSharper disable UnusedMember.Global
 // ReSharper disable once CheckNamespace
+
 namespace SqlBulkTools
 {
     /// <summary>
@@ -81,7 +82,7 @@ namespace SqlBulkTools
 
             _conditionSortOrder++;
 
-            string leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.Or, "Collation");
+            var leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.Or, "Collation");
             _collationColumnDic.Add(BulkOperationsHelper.GetActualColumn(_customColumnMappings, leftName), collation);
 
             return new QueryUpdateReady<T>(_singleEntity, _tableName, _schema, _columns, _customColumnMappings,

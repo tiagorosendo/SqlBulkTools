@@ -1,8 +1,9 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
+// ReSharper disable CheckNamespace
+// ReSharper disable UnusedMember.Global
 
-// ReSharper disable once CheckNamespace
 namespace SqlBulkTools
 {
     internal interface ITransaction

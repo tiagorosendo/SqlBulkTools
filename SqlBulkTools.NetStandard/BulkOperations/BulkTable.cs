@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+// ReSharper disable UnusedMember.Global
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools.BulkCopy
@@ -13,24 +14,25 @@ namespace SqlBulkTools.BulkCopy
     /// <typeparam name="T"></typeparam>
     public class BulkTable<T>
     {
-        private readonly BulkOperations bulk;
+        private readonly BulkOperations _bulk;
         private readonly IEnumerable<T> _list;
         private HashSet<string> Columns { get; set; }
         private string _schema;
         private readonly string _tableName;
-        private Dictionary<string, string> CustomColumnMappings { get; set; }
+        private Dictionary<string, string> CustomColumnMappings { get; }
         private BulkCopySettings _bulkCopySettings;
         private readonly List<PropertyInfo> _propertyInfoList;
 
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="bulk"></param>
         /// <param name="list"></param>
         /// <param name="tableName"></param>
         /// <param name="schema"></param>
         public BulkTable(BulkOperations bulk, IEnumerable<T> list, string tableName, string schema)
         {
-            this.bulk = bulk;
+            _bulk = bulk;
             _list = list;
             _schema = schema;
             Columns = new HashSet<string>();
@@ -51,9 +53,14 @@ namespace SqlBulkTools.BulkCopy
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             Columns.Add(propertyName);
-            return new BulkAddColumn<T>(bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
+            return new BulkAddColumn<T>(_bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="columnNames"></param>
+        /// <returns></returns>
         public BulkAddColumn<T> AddColumns(params Expression<Func<T, object>>[] columnNames)
         {
             foreach (var column in columnNames)
@@ -61,7 +68,7 @@ namespace SqlBulkTools.BulkCopy
                 var propertyName = BulkOperationsHelper.GetPropertyName(column);
                 Columns.Add(propertyName);
             }
-            return new BulkAddColumn<T>(bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
+            return new BulkAddColumn<T>(_bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
         }
 
         /// <summary>
@@ -83,7 +90,7 @@ namespace SqlBulkTools.BulkCopy
 
             CustomColumnMappings.Add(propertyName, destination);
 
-            return new BulkAddColumn<T>(bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
+            return new BulkAddColumn<T>(_bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
         }
 
         /// <summary>
@@ -92,8 +99,8 @@ namespace SqlBulkTools.BulkCopy
         /// <returns></returns>
         public BulkAddColumnList<T> AddAllColumns()
         {
-            Columns = BulkOperationsHelper.GetAllValueTypeAndStringColumns(_propertyInfoList, typeof(T));
-            return new BulkAddColumnList<T>(bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
+            Columns = BulkOperationsHelper.GetAllValueTypeAndStringColumns(_propertyInfoList);
+            return new BulkAddColumnList<T>(_bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
         }
 
         /// <summary>

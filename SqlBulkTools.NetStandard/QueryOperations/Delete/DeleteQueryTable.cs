@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using SqlBulkTools.BulkCopy;
+﻿// ReSharper disable UnusedMember.Global
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -10,25 +9,17 @@ namespace SqlBulkTools
     /// <typeparam name="T"></typeparam>
     public class DeleteQueryTable<T>
     {
-        private HashSet<string> Columns { get; set; }
         private string _schema;
         private readonly string _tableName;
-        private Dictionary<string, string> CustomColumnMappings { get; set; }
-        private int _sqlTimeout;
+
         /// <summary>
         /// 
         /// </summary>
         /// <param name="tableName"></param>
         public DeleteQueryTable(string tableName)
         {
-            _sqlTimeout = 600;
             _schema = Constants.DefaultSchemaName;
-            Columns = new HashSet<string>();
-            CustomColumnMappings = new Dictionary<string, string>();
             _tableName = tableName;
-            _schema = Constants.DefaultSchemaName;
-            Columns = new HashSet<string>();
-            CustomColumnMappings = new Dictionary<string, string>();
         }
 
         /// <summary>
@@ -38,7 +29,7 @@ namespace SqlBulkTools
         /// <returns></returns>
         public DeleteQueryCondition<T> Delete()
         {
-            return new DeleteQueryCondition<T>(_tableName, _schema, _sqlTimeout);
+            return new DeleteQueryCondition<T>(_tableName, _schema); //, _sqlTimeout);
         }
 
         /// <summary>
@@ -52,15 +43,15 @@ namespace SqlBulkTools
             return this;
         }
 
-        /// <summary>
-        /// Default is 600 seconds. See docs for more info. 
-        /// </summary>
-        /// <param name="seconds"></param>
-        /// <returns></returns>
-        public DeleteQueryTable<T> WithSqlCommandTimeout(int seconds)
-        {
-            _sqlTimeout = seconds;
-            return this;
-        }
+        ///// <summary>
+        ///// Default is 600 seconds. See docs for more info. 
+        ///// </summary>
+        ///// <param name="seconds"></param>
+        ///// <returns></returns>
+        //public DeleteQueryTable<T> WithSqlCommandTimeout(int seconds)
+        //{
+        //    //_sqlTimeout = seconds;
+        //    return this;
+        //}
     }
 }

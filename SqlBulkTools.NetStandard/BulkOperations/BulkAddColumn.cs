@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
+// ReSharper disable UnusedMember.Global
 
+// ReSharper disable once CheckNamespace
 namespace SqlBulkTools
 {
     /// <summary>
@@ -14,6 +16,7 @@ namespace SqlBulkTools
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="bulk"></param>
         /// <param name="list"></param>
         /// <param name="tableName"></param>
         /// <param name="columns"></param>
@@ -40,6 +43,11 @@ namespace SqlBulkTools
             return this;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="columnNames"></param>
+        /// <returns></returns>
         public BulkAddColumn<T> AddColumns(params Expression<Func<T, object>>[] columnNames)
         {
             foreach (var column in columnNames)
@@ -64,7 +72,7 @@ namespace SqlBulkTools
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             _columns.Add(propertyName);
 
-            _customColumnMappings.Add(propertyName, destination);
+            CustomColumnMappings.Add(propertyName, destination);
             return this;
         }
     }

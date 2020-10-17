@@ -1,5 +1,4 @@
 ﻿using System;
-using SqlBulkTools.Enumeration;
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools

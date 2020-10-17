@@ -1,5 +1,4 @@
-﻿using SqlBulkTools.Enumeration;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -7,6 +6,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
+using SqlBulkTools.Enumeration;
+
+// ReSharper disable UnusedMember.Global
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -20,8 +22,9 @@ namespace SqlBulkTools
         private Dictionary<string, bool> _nullableColumnDic;
 
         /// <summary>
-        ///
+        /// 
         /// </summary>
+        /// <param name="bulk"></param>
         /// <param name="list"></param>
         /// <param name="tableName"></param>
         /// <param name="schema"></param>
@@ -42,7 +45,7 @@ namespace SqlBulkTools
 
         /// <summary>
         /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
-        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// each row in table. This is usually set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
         /// for matching composite relationships.
         /// </summary>
         /// <param name="columnName"></param>
@@ -61,7 +64,7 @@ namespace SqlBulkTools
 
         /// <summary>
         /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
-        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// each row in table. This is usually set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
         /// for matching composite relationships.
         /// </summary>
         /// <param name="columnName"></param>
@@ -75,13 +78,13 @@ namespace SqlBulkTools
                 throw new NullReferenceException("MatchTargetOn column name can't be null.");
 
             _matchTargetOn.Add(propertyName);
-            base.SetCollation(propertyName, collation);
+            SetCollation(propertyName, collation);
 
             return this;
         }
 
         /// <summary>
-        /// Sets the table hint to be used in the merge query. HOLDLOCk is the default that will be used if one is not set.
+        /// Sets the table hint to be used in the merge query. HOLDLOCK is the default that will be used if one is not set.
         /// </summary>
         /// <param name="tableHint"></param>
         /// <returns></returns>
@@ -92,14 +95,15 @@ namespace SqlBulkTools
         }
 
         /// <summary>
-        /// Only delete records when the target satisfies a speicific requirement. This is used in conjunction with MatchTargetOn.
+        /// Only delete records when the target satisfies a specific requirement. This is used in conjunction with MatchTargetOn.
         /// See help docs for examples.
         /// </summary>
         /// <param name="predicate"></param>
         /// <returns></returns>
         public BulkDelete<T> DeleteWhen(Expression<Func<T, bool>> predicate)
         {
-            BulkOperationsHelper.AddPredicate(predicate, PredicateType.Delete, _deletePredicates, _parameters, _conditionSortOrder, Constants.UniqueParamIdentifier);
+            BulkOperationsHelper.AddPredicate(predicate, PredicateType.Delete, _deletePredicates, _parameters, _conditionSortOrder,
+                Constants.UniqueParamIdentifier);
             _conditionSortOrder++;
 
             return this;
@@ -113,7 +117,7 @@ namespace SqlBulkTools
         /// <returns></returns>
         public BulkDelete<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
         {
-            base.SetIdentity(columnName);
+            SetIdentity(columnName);
             return this;
         }
 
@@ -126,22 +130,35 @@ namespace SqlBulkTools
         /// <returns></returns>
         public BulkDelete<T> SetIdentityColumn(Expression<Func<T, object>> columnName, ColumnDirectionType outputIdentity)
         {
-            base.SetIdentity(columnName, outputIdentity);
+            SetIdentity(columnName, outputIdentity);
             return this;
         }
 
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
         public BulkDelete<T> WithTimeout(int timeout)
         {
-            this._sqlTimeout = timeout;
+            _sqlTimeout = timeout;
             return this;
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public int Commit(IDbConnection connection, IDbTransaction transaction = null)
         {
             if (connection is SqlConnection == false)
                 throw new ArgumentException("Parameter must be a SqlConnection instance");
 
-            return Commit((SqlConnection)connection, (SqlTransaction)transaction);
+            return Commit((SqlConnection) connection, (SqlTransaction) transaction);
         }
 
         /// <summary>
@@ -149,18 +166,20 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         public int Commit(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRecords = 0;
+            var affectedRecords = 0;
             if (!_list.Any())
             {
                 return affectedRecords;
             }
 
-            base.MatchTargetCheck();
+            MatchTargetCheck();
 
-            DataTable dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn, _outputIdentity);
+            var dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn,
+                _outputIdentity);
             dt = BulkOperationsHelper.ConvertListToDataTable(_propertyInfoList, dt, _list, _columns, _ordinalDic, _outputIdentityDic);
 
             // Must be after ToDataTable is called.
@@ -170,9 +189,9 @@ namespace SqlBulkTools
             if (connection.State == ConnectionState.Closed)
                 connection.Open();
 
-            var dtCols = BulkOperationsHelper.GetDatabaseSchema(bulk, connection, _schema, _tableName);
+            var dtCols = BulkOperationsHelper.GetDatabaseSchema(_bulk, connection, _schema, _tableName);
 
-            SqlCommand command = connection.CreateCommand();
+            var command = connection.CreateCommand();
             command.Connection = connection;
             command.CommandTimeout = _sqlTimeout;
             command.Transaction = transaction;
@@ -185,8 +204,8 @@ namespace SqlBulkTools
 
             BulkOperationsHelper.InsertToTmpTable(connection, dt, _bulkCopySettings, transaction);
 
-            string comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
-            OperationType.InsertOrUpdate, _identityColumn);
+            var comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
+                OperationType.InsertOrUpdate, _identityColumn);
 
             if (!string.IsNullOrWhiteSpace(comm))
             {
@@ -218,18 +237,20 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRecords = 0;
+            var affectedRecords = 0;
             if (!_list.Any())
             {
                 return affectedRecords;
             }
 
-            base.MatchTargetCheck();
+            MatchTargetCheck();
 
-            DataTable dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn, _outputIdentity);
+            var dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn,
+                _outputIdentity);
             dt = BulkOperationsHelper.ConvertListToDataTable(_propertyInfoList, dt, _list, _columns, _ordinalDic, _outputIdentityDic);
 
             // Must be after ToDataTable is called.
@@ -239,9 +260,9 @@ namespace SqlBulkTools
             if (connection.State != ConnectionState.Open)
                 await connection.OpenAsync();
 
-            var dtCols = BulkOperationsHelper.GetDatabaseSchema(bulk, connection, _schema, _tableName);
+            var dtCols = BulkOperationsHelper.GetDatabaseSchema(_bulk, connection, _schema, _tableName);
 
-            SqlCommand command = connection.CreateCommand();
+            var command = connection.CreateCommand();
             command.Connection = connection;
             command.CommandTimeout = _sqlTimeout;
             command.Transaction = transaction;
@@ -254,8 +275,8 @@ namespace SqlBulkTools
 
             BulkOperationsHelper.InsertToTmpTable(connection, dt, _bulkCopySettings, transaction);
 
-            string comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
-            OperationType.InsertOrUpdate, _identityColumn);
+            var comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
+                OperationType.InsertOrUpdate, _identityColumn);
 
             if (!string.IsNullOrWhiteSpace(comm))
             {
@@ -276,7 +297,7 @@ namespace SqlBulkTools
 
             if (_outputIdentity == ColumnDirectionType.InputOutput)
             {
-                BulkOperationsHelper.LoadFromTmpOutputTable(command, _identityColumn, _outputIdentityDic, OperationType.Delete, _list);
+                await BulkOperationsHelper.LoadFromTmpOutputTableAsync(command, _identityColumn, _outputIdentityDic, OperationType.Delete, _list);
             }
 
             return affectedRecords;
@@ -284,15 +305,17 @@ namespace SqlBulkTools
 
         private string GetCommand(SqlConnection connection)
         {
-            string comm = "MERGE INTO " + BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema, _tableName) + $" WITH ({_tableHint}) AS Target " +
-                          "USING " + Constants.TempTableName + " AS Source " +
-                          BulkOperationsHelper.BuildJoinConditionsForInsertOrUpdate(_matchTargetOn.ToArray(),
-                          Constants.SourceAlias, Constants.TargetAlias, base._collationColumnDic, _nullableColumnDic) +
-                          "WHEN MATCHED " + BulkOperationsHelper.BuildPredicateQuery(_matchTargetOn.ToArray(), _deletePredicates, Constants.TargetAlias, base._collationColumnDic) +
-                          "THEN DELETE " +
-                          BulkOperationsHelper.GetOutputIdentityCmd(_identityColumn, _outputIdentity, Constants.TempOutputTableName,
-                          OperationType.Delete) + "; " +
-                          "DROP TABLE " + Constants.TempTableName + ";";
+            var comm = "MERGE INTO " + BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema, _tableName) +
+                       $" WITH ({_tableHint}) AS Target " +
+                       "USING " + Constants.TempTableName + " AS Source " +
+                       BulkOperationsHelper.BuildJoinConditionsForInsertOrUpdate(_matchTargetOn.ToArray(),
+                           Constants.SourceAlias, Constants.TargetAlias, _collationColumnDic, _nullableColumnDic) +
+                       "WHEN MATCHED " + BulkOperationsHelper.BuildPredicateQuery(_matchTargetOn.ToArray(), _deletePredicates, Constants.TargetAlias,
+                           _collationColumnDic) +
+                       "THEN DELETE " +
+                       BulkOperationsHelper.GetOutputIdentityCmd(_identityColumn, _outputIdentity, Constants.TempOutputTableName,
+                           OperationType.Delete) + "; " +
+                       "DROP TABLE " + Constants.TempTableName + ";";
 
             return comm;
         }

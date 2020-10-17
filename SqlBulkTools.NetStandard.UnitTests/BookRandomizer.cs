@@ -5,22 +5,21 @@ using AutoFixture;
 using AutoFixture.Kernel;
 using SqlBulkTools.TestCommon.Model;
 
+// ReSharper disable CheckNamespace
+
 namespace SqlBulkTools.TestCommon
 {
     public class BookRandomizer
     {
-
         public List<Book> GetRandomCollection(int count)
         {
             var fixture = new Fixture();
             fixture.Customizations.Add(new PriceBuilder());
             fixture.Customizations.Add(new IsbnBuilder());
             fixture.Customizations.Add(new TitleBuilder());
-            var books = new List<Book>();
-            books = fixture.Build<Book>().Without(x => x.Id).CreateMany(count).ToList();
+            var books = fixture.Build<Book>().Without(x => x.Id).CreateMany(count).ToList();
             return books;
         }
-
     }
 
     public class PriceBuilder : ISpecimenBuilder
@@ -46,9 +45,7 @@ namespace SqlBulkTools.TestCommon
             if (pi != null &&
                 pi.Name == "ISBN" &&
                 pi.PropertyType == typeof(string))
-
-            return context.Resolve(typeof(string))
-                    .ToString().Substring(0, 13);
+                return context.Resolve(typeof(string)).ToString().Substring(0, 13);
 
             return new NoSpecimen();
         }
@@ -63,8 +60,7 @@ namespace SqlBulkTools.TestCommon
                 pi.Name == "Title" &&
                 pi.PropertyType == typeof(string))
 
-                return context.Resolve(typeof(string))
-                        .ToString().Substring(0, 10);
+                return context.Resolve(typeof(string)).ToString().Substring(0, 10);
 
             return new NoSpecimen();
         }

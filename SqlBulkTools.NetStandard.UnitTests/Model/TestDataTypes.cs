@@ -1,4 +1,6 @@
 ﻿using System;
+// ReSharper disable CheckNamespace
+// ReSharper disable UnusedMember.Global
 
 namespace SqlBulkTools.TestCommon.Model
 {

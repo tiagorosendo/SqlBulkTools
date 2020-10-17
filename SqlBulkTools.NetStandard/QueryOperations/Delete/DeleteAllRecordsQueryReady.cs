@@ -2,6 +2,7 @@
 using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
+// ReSharper disable UnusedMember.Global
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -39,6 +40,12 @@ namespace SqlBulkTools
             return this;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
         public int Commit(IDbConnection connection, IDbTransaction transaction = null)
         {
             if (connection is SqlConnection == false)
@@ -52,19 +59,20 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         public int Commit(SqlConnection connection, SqlTransaction transaction)
         {
             if (connection.State == ConnectionState.Closed)
                 connection.Open();
 
-            SqlCommand command = connection.CreateCommand();
+            var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
 
             command.CommandText = GetQuery(connection);
 
-            int affectedRows = command.ExecuteNonQuery();
+            var affectedRows = command.ExecuteNonQuery();
 
             return affectedRows;
         }
@@ -74,33 +82,34 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
         {
             if (connection.State == ConnectionState.Closed)
                 await connection.OpenAsync();
 
-            SqlCommand command = connection.CreateCommand();
+            var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
 
             command.CommandText = command.CommandText = GetQuery(connection);
 
-            int affectedRows = await command.ExecuteNonQueryAsync();
+            var affectedRows = await command.ExecuteNonQueryAsync();
 
             return affectedRows;
         }
 
         private string GetQuery(SqlConnection connection)
         {
-            string fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
+            var fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
                  _tableName);
 
-            string batchQtyStart = _batchQuantity != null ? "DeleteMore:\n" : string.Empty;
-            string batchQty = _batchQuantity != null ? $"TOP ({_batchQuantity}) " : string.Empty;
-            string batchQtyRepeat = _batchQuantity != null ? $"\nIF @@ROWCOUNT != 0\ngoto DeleteMore" : string.Empty;
+            var batchQtyStart = _batchQuantity != null ? "DeleteMore:\n" : string.Empty;
+            var batchQty = _batchQuantity != null ? $"TOP ({_batchQuantity}) " : string.Empty;
+            var batchQtyRepeat = _batchQuantity != null ? "\nIF @@ROWCOUNT != 0\ngoto DeleteMore" : string.Empty;
 
-            string comm = $"{batchQtyStart}DELETE {batchQty}FROM {fullQualifiedTableName} {batchQtyRepeat}";
+            var comm = $"{batchQtyStart}DELETE {batchQty}FROM {fullQualifiedTableName} {batchQtyRepeat}";
 
             return comm;
         }

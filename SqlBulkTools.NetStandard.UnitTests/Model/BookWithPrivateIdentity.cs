@@ -1,6 +1,8 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+// ReSharper disable CheckNamespace
+// ReSharper disable UnusedMember.Global
 
 namespace SqlBulkTools.TestCommon.Model
 {
@@ -8,7 +10,8 @@ namespace SqlBulkTools.TestCommon.Model
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
-        public int Id { get; } // This is made private by purpose
+        // ReSharper disable once UnusedAutoPropertyAccessor.Local
+        public int Id { get; private set; } // Set is made private on purpose
 
         [MaxLength(13)]
         public string ISBN { get; set; }

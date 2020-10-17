@@ -1,8 +1,7 @@
-﻿ // ReSharper disable once CheckNamespace
+﻿ // ReSharper disable CheckNamespace
+ // ReSharper disable UnusedMember.Global
 
-using SqlBulkTools.Core;
-
-namespace SqlBulkTools
+ namespace SqlBulkTools
 {
     /// <summary>
     /// 

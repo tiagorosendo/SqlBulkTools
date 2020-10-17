@@ -1,5 +1,4 @@
-﻿using SqlBulkTools.Enumeration;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -7,7 +6,11 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using SqlBulkTools.Enumeration;
 
+// ReSharper disable UnusedMember.Global
+
+// ReSharper disable once CheckNamespace
 namespace SqlBulkTools.QueryOperations
 {
     /// <summary>
@@ -86,24 +89,22 @@ namespace SqlBulkTools.QueryOperations
                 throw new SqlBulkToolsException("SetIdentityColumn column name can't be null");
 
             if (_identityColumn == null)
-            {
-                string actualPropertyName;
-
-                if (_customColumnMappings.TryGetValue(propertyName, out actualPropertyName))
-                    _identityColumn = actualPropertyName;
-                else
-                    _identityColumn = propertyName;
-            }
+                _identityColumn = _customColumnMappings.TryGetValue(propertyName, out var actualPropertyName) ? actualPropertyName : propertyName;
             else
-            {
                 throw new SqlBulkToolsException("Can't have more than one identity column");
-            }
 
             _columns.Add(propertyName);
 
             return this;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public int Commit(IDbConnection connection, IDbTransaction transaction = null)
         {
             if (connection is SqlConnection == false)
@@ -117,11 +118,12 @@ namespace SqlBulkTools.QueryOperations
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         /// <exception cref="IdentityException"></exception>
         public int Commit(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (_singleEntity == null)
             {
                 return affectedRows;
@@ -135,14 +137,14 @@ namespace SqlBulkTools.QueryOperations
                 BulkOperationsHelper.AddSqlParamsForQuery(_propertyInfoList, _sqlParams, _columns, _singleEntity, _identityColumn, _outputIdentity, _customColumnMappings);
                 BulkOperationsHelper.DoColumnMappings(_customColumnMappings, _columns);
 
-                SqlCommand command = connection.CreateCommand();
+                var command = connection.CreateCommand();
                 command.Connection = connection;
                 command.Transaction = transaction;
 
-                string fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
+                var fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
                 _tableName);
 
-                StringBuilder sb = new StringBuilder();
+                var sb = new StringBuilder();
 
                 sb.Append($"{BulkOperationsHelper.BuildInsertIntoSet(_columns, _identityColumn, fullQualifiedTableName)} " +
                               $"VALUES{BulkOperationsHelper.BuildValueSet(_columns, _identityColumn)} ");
@@ -168,8 +170,8 @@ namespace SqlBulkTools.QueryOperations
                         if (x.Direction == ParameterDirection.InputOutput
                             && x.ParameterName == $"@{_identityColumn}")
                         {
-                            PropertyInfo propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
-                            propertyInfo.SetValue(_singleEntity, x.Value);
+                            var propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
+                            propertyInfo?.SetValue(_singleEntity, x.Value);
                             break;
                         }
                     }
@@ -179,12 +181,12 @@ namespace SqlBulkTools.QueryOperations
             }
             catch (SqlException e)
             {
-                for (int i = 0; i < e.Errors.Count; i++)
+                for (var i = 0; i < e.Errors.Count; i++)
                 {
                     // Error 8102 and 544 is identity error.
                     if (e.Errors[i].Number == 544 || e.Errors[i].Number == 8102)
                     {
-                        // Expensive but neccessary to inform user of an important configuration setup.
+                        // Expensive but necessary to inform user of an important configuration setup.
                         throw new IdentityException(e.Errors[i].Message);
                     }
                 }
@@ -197,11 +199,12 @@ namespace SqlBulkTools.QueryOperations
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         /// <exception cref="IdentityException"></exception>
         public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (_singleEntity == null)
             {
                 return affectedRows;
@@ -215,14 +218,14 @@ namespace SqlBulkTools.QueryOperations
                 BulkOperationsHelper.AddSqlParamsForQuery(_propertyInfoList, _sqlParams, _columns, _singleEntity, _identityColumn, _outputIdentity, _customColumnMappings);
                 BulkOperationsHelper.DoColumnMappings(_customColumnMappings, _columns);
 
-                SqlCommand command = connection.CreateCommand();
+                var command = connection.CreateCommand();
                 command.Connection = connection;
                 command.Transaction = transaction;
 
-                string fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
+                var fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
                 _tableName);
 
-                StringBuilder sb = new StringBuilder();
+                var sb = new StringBuilder();
 
                 sb.Append($"{BulkOperationsHelper.BuildInsertIntoSet(_columns, _identityColumn, fullQualifiedTableName)} " +
                               $"VALUES{BulkOperationsHelper.BuildValueSet(_columns, _identityColumn)} ");
@@ -248,8 +251,8 @@ namespace SqlBulkTools.QueryOperations
                         if (x.Direction == ParameterDirection.InputOutput
                             && x.ParameterName == $"@{_identityColumn}")
                         {
-                            PropertyInfo propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
-                            propertyInfo.SetValue(_singleEntity, x.Value);
+                            var propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
+                            propertyInfo?.SetValue(_singleEntity, x.Value);
                             break;
                         }
                     }
@@ -259,12 +262,12 @@ namespace SqlBulkTools.QueryOperations
             }
             catch (SqlException e)
             {
-                for (int i = 0; i < e.Errors.Count; i++)
+                for (var i = 0; i < e.Errors.Count; i++)
                 {
                     // Error 8102 and 544 is identity error.
                     if (e.Errors[i].Number == 544 || e.Errors[i].Number == 8102)
                     {
-                        // Expensive but neccessary to inform user of an important configuration setup.
+                        // Expensive but necessary to inform user of an important configuration setup.
                         throw new IdentityException(e.Errors[i].Message);
                     }
                 }

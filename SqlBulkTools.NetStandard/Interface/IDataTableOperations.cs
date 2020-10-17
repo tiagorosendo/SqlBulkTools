@@ -1,4 +1,5 @@
 ﻿using System.Data;
+// ReSharper disable UnusedMemberInSuper.Global
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -19,6 +20,6 @@ namespace SqlBulkTools
         /// 
         /// </summary>
         /// <returns></returns>
-        DataTable BuildPreparedDataDable();
+        DataTable BuildPreparedDataTable();
     }
 }

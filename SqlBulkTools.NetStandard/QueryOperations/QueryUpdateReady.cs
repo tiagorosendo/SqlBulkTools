@@ -1,5 +1,4 @@
-﻿using SqlBulkTools.Enumeration;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -7,6 +6,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
+using SqlBulkTools.Enumeration;
+// ReSharper disable UnusedMember.Global
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -30,7 +31,7 @@ namespace SqlBulkTools
         private string _identityColumn;
         private readonly Dictionary<string, string> _collationColumnDic;
         private int? _batchQuantity;
-        private List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropertyInfo> _propertyInfoList;
 
         /// <summary>
         ///
@@ -109,7 +110,7 @@ namespace SqlBulkTools
             BulkOperationsHelper.AddPredicate(expression, PredicateType.And, _andConditions, _sqlParams, _conditionSortOrder, appendParam: Constants.UniqueParamIdentifier);
             _conditionSortOrder++;
 
-            string leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.And, "Collation");
+            var leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.And, "Collation");
             _collationColumnDic.Add(BulkOperationsHelper.GetActualColumn(_customColumnMappings, leftName), collation);
 
             return this;
@@ -141,7 +142,7 @@ namespace SqlBulkTools
             BulkOperationsHelper.AddPredicate(expression, PredicateType.Or, _orConditions, _sqlParams, _conditionSortOrder, appendParam: Constants.UniqueParamIdentifier);
             _conditionSortOrder++;
 
-            string leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.Or, "Collation");
+            var leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.Or, "Collation");
             _collationColumnDic.Add(BulkOperationsHelper.GetActualColumn(_customColumnMappings, leftName), collation);
 
             return this;
@@ -158,6 +159,13 @@ namespace SqlBulkTools
             return this;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public int Commit(IDbConnection connection, IDbTransaction transaction = null)
         {
             if (connection is SqlConnection == false)
@@ -171,10 +179,11 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         public int Commit(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (_singleEntity == null)
             {
                 return affectedRows;
@@ -183,7 +192,7 @@ namespace SqlBulkTools
             if (connection.State == ConnectionState.Closed)
                 connection.Open();
 
-            SqlCommand command = connection.CreateCommand();
+            var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
 
@@ -204,10 +213,11 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (_singleEntity == null)
             {
                 return affectedRows;
@@ -216,7 +226,7 @@ namespace SqlBulkTools
             if (connection.State == ConnectionState.Closed)
                 await connection.OpenAsync();
 
-            SqlCommand command = connection.CreateCommand();
+            var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
 
@@ -234,20 +244,20 @@ namespace SqlBulkTools
 
         private string GetQuery(SqlConnection connection)
         {
-            string fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
+            var fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema,
                 _tableName);
 
             BulkOperationsHelper.AddSqlParamsForQuery(_propertyInfoList, _sqlParams, _columns, _singleEntity, customColumns: _customColumnMappings);
             var concatenatedQuery = _whereConditions.Concat(_andConditions).Concat(_orConditions).OrderBy(x => x.SortOrder);
             BulkOperationsHelper.DoColumnMappings(_customColumnMappings, _columns);
 
-            string batchQtyStart = _batchQuantity != null ? "UpdateMore:\n" : string.Empty;
-            string batchQty = _batchQuantity != null ? $"TOP ({_batchQuantity}) " : string.Empty;
-            string batchQtyRepeat = _batchQuantity != null ? $"\nIF @@ROWCOUNT != 0\ngoto UpdateMore" : string.Empty;
+            var batchQtyStart = _batchQuantity != null ? "UpdateMore:\n" : string.Empty;
+            var batchQty = _batchQuantity != null ? $"TOP ({_batchQuantity}) " : string.Empty;
+            var batchQtyRepeat = _batchQuantity != null ? "\nIF @@ROWCOUNT != 0\ngoto UpdateMore" : string.Empty;
 
-            string comm = $"{batchQtyStart}UPDATE {batchQty}{fullQualifiedTableName} " +
-            $"{BulkOperationsHelper.BuildUpdateSet(_columns, null, _identityColumn)}" +
-            $"{BulkOperationsHelper.BuildPredicateQuery(concatenatedQuery, _collationColumnDic, _customColumnMappings)}{batchQtyRepeat}";
+            var comm = $"{batchQtyStart}UPDATE {batchQty}{fullQualifiedTableName} " +
+                       $"{BulkOperationsHelper.BuildUpdateSet(_columns, null, _identityColumn)}" +
+                       $"{BulkOperationsHelper.BuildPredicateQuery(concatenatedQuery, _collationColumnDic, _customColumnMappings)}{batchQtyRepeat}";
 
             return comm;
         }
