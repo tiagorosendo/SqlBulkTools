@@ -1,11 +1,13 @@
-﻿using SqlBulkTools.Enumeration;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
+using SqlBulkTools.Enumeration;
+
+// ReSharper disable UnusedMember.Global
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -92,7 +94,7 @@ namespace SqlBulkTools
             if (!_columns.Contains(propertyName))
             {
                 throw new SqlBulkToolsException("ExcludeColumnFromUpdate could not exclude column from update because column could not " +
-                                                "be recognised. Call AddAllColumns() or AddColumn() for this column first.");
+                                                "be recognized. Call AddAllColumns() or AddColumn() for this column first.");
             }
             _excludeFromUpdate.Add(propertyName);
 
@@ -121,7 +123,7 @@ namespace SqlBulkTools
 
         /// <summary>
         /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
-        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// each row in table. This is usually set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
         /// for matching composite relationships.
         /// </summary>
         /// <param name="columnName"></param>
@@ -140,7 +142,7 @@ namespace SqlBulkTools
 
         /// <summary>
         /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
-        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// each row in table. This is usually set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
         /// for matching composite relationships.
         /// </summary>
         /// <param name="columnName"></param>
@@ -163,6 +165,13 @@ namespace SqlBulkTools
             return this;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public int Commit(IDbConnection connection, IDbTransaction transaction = null)
         {
             if (connection is SqlConnection == false)
@@ -176,12 +185,13 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="conn"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         /// <exception cref="NullReferenceException"></exception>
         /// <exception cref="IdentityException"></exception>
         public int Commit(SqlConnection conn, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (_singleEntity == null)
             {
                 return affectedRows;
@@ -198,11 +208,11 @@ namespace SqlBulkTools
                 BulkOperationsHelper.AddSqlParamsForQuery(_propertyInfoList, _sqlParams, _columns, _singleEntity, _identityColumn, _outputIdentity, _customColumnMappings);
                 BulkOperationsHelper.DoColumnMappings(_customColumnMappings, _columns);
 
-                SqlCommand command = conn.CreateCommand();
+                var command = conn.CreateCommand();
                 command.Connection = conn;
                 command.Transaction = transaction;
 
-                string fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(conn.Database, _schema, _tableName);
+                var fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(conn.Database, _schema, _tableName);
 
                 command.CommandText = GetCommand(fullQualifiedTableName);
 
@@ -213,34 +223,29 @@ namespace SqlBulkTools
 
                 affectedRows = command.ExecuteNonQuery();
 
-                if (_outputIdentity == ColumnDirectionType.InputOutput)
+                if (_outputIdentity != ColumnDirectionType.InputOutput) return affectedRows;
+                foreach (var x in _sqlParams)
                 {
-                    foreach (var x in _sqlParams)
+                    if (x.Direction != ParameterDirection.InputOutput || x.ParameterName != $"@{_identityColumn}") continue;
+                    if (x.Value is DBNull)
                     {
-                        if (x.Direction == ParameterDirection.InputOutput
-                            && x.ParameterName == $"@{_identityColumn}")
-                        {
-                            if (x.Value is DBNull)
-                            {
-                                break;
-                            }
-                            PropertyInfo propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
-                            propertyInfo.SetValue(_singleEntity, x.Value);
-                            break;
-                        }
+                        break;
                     }
+                    var propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
+                    propertyInfo?.SetValue(_singleEntity, x.Value);
+                    break;
                 }
 
                 return affectedRows;
             }
             catch (SqlException e)
             {
-                for (int i = 0; i < e.Errors.Count; i++)
+                for (var i = 0; i < e.Errors.Count; i++)
                 {
                     // Error 8102 and 544 is identity error.
                     if (e.Errors[i].Number == 544 || e.Errors[i].Number == 8102)
                     {
-                        // Expensive but neccessary to inform user of an important configuration setup.
+                        // Expensive but necessary to inform user of an important configuration setup.
                         throw new IdentityException(e.Errors[i].Message);
                     }
                 }
@@ -254,12 +259,13 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="conn"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         /// <exception cref="NullReferenceException"></exception>
         /// <exception cref="IdentityException"></exception>
         public async Task<int> CommitAsync(SqlConnection conn, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (_singleEntity == null)
             {
                 return affectedRows;
@@ -276,11 +282,11 @@ namespace SqlBulkTools
                 if (conn.State == ConnectionState.Closed)
                     await conn.OpenAsync();
 
-                SqlCommand command = conn.CreateCommand();
+                var command = conn.CreateCommand();
                 command.Connection = conn;
                 command.Transaction = transaction;
 
-                string fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(conn.Database, _schema, _tableName);
+                var fullQualifiedTableName = BulkOperationsHelper.GetFullQualifyingTableName(conn.Database, _schema, _tableName);
 
                 command.CommandText = GetCommand(fullQualifiedTableName);
 
@@ -291,35 +297,30 @@ namespace SqlBulkTools
 
                 affectedRows = await command.ExecuteNonQueryAsync();
 
-                if (_outputIdentity == ColumnDirectionType.InputOutput)
+                if (_outputIdentity != ColumnDirectionType.InputOutput) return affectedRows;
+                foreach (var x in _sqlParams)
                 {
-                    foreach (var x in _sqlParams)
+                    if (x.Direction != ParameterDirection.InputOutput || x.ParameterName != $"@{_identityColumn}") continue;
+                    if (x.Value is DBNull)
                     {
-                        if (x.Direction == ParameterDirection.InputOutput
-                            && x.ParameterName == $"@{_identityColumn}")
-                        {
-                            if (x.Value is DBNull)
-                            {
-                                break;
-                            }
-
-                            PropertyInfo propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
-                            propertyInfo.SetValue(_singleEntity, x.Value);
-                            break;
-                        }
+                        break;
                     }
+
+                    var propertyInfo = _singleEntity.GetType().GetProperty(_identityColumn);
+                    propertyInfo?.SetValue(_singleEntity, x.Value);
+                    break;
                 }
 
                 return affectedRows;
             }
             catch (SqlException e)
             {
-                for (int i = 0; i < e.Errors.Count; i++)
+                for (var i = 0; i < e.Errors.Count; i++)
                 {
                     // Error 8102 and 544 is identity error.
                     if (e.Errors[i].Number == 544 || e.Errors[i].Number == 8102)
                     {
-                        // Expensive but neccessary to inform user of an important configuration setup.
+                        // Expensive but necessary to inform user of an important configuration setup.
                         throw new IdentityException(e.Errors[i].Message);
                     }
                 }
@@ -338,7 +339,7 @@ namespace SqlBulkTools
             return $"UPDATE {fullQualifiedTableName} {BulkOperationsHelper.BuildUpdateSet(_columns, _excludeFromUpdate, _identityColumn)}" +
                 $"{(_outputIdentity == ColumnDirectionType.InputOutput ? $", @{_identityColumn} = [{_identityColumn}] " : string.Empty)} " +
                 $"{BulkOperationsHelper.BuildMatchTargetOnList(_matchTargetOn, _collationColumnDic, _customColumnMappings)} " +
-                $"IF (@@ROWCOUNT = 0) BEGIN " +
+                "IF (@@ROWCOUNT = 0) BEGIN " +
                 $"{BulkOperationsHelper.BuildInsertIntoSet(_columns, _identityColumn, fullQualifiedTableName)} " +
                 $"VALUES{BulkOperationsHelper.BuildValueSet(_columns, _identityColumn)}" +
                 $"{(_outputIdentity == ColumnDirectionType.InputOutput ? $" SET @{_identityColumn} = SCOPE_IDENTITY()" : string.Empty)} END";

@@ -13,8 +13,8 @@ namespace SqlBulkTools
     /// <typeparam name="T"></typeparam>
     public class DataTableSingularColumnSelect<T> : DataTableAbstractColumnSelect<T>, IDataTableTransaction
     {
-        private Dictionary<string, int> _ordinalDic;
-        private List<PropertyInfo> _propertyInfoList;
+        private readonly Dictionary<string, int> _ordinalDic;
+        private readonly List<PropertyInfo> _propertyInfoList;
 
         /// <summary>
         /// 
@@ -57,7 +57,7 @@ namespace SqlBulkTools
 
         /// <summary>
         /// Returns a data table to be used in a stored procedure as table variable or temp table.
-        /// Make any neccessary changes before calling BuildPreparedDataTable
+        /// Make any necessary changes before calling BuildPreparedDataTable
         /// </summary>
         /// <returns></returns>
         public DataTable PrepareDataTable()

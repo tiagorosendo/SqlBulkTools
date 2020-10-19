@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using SqlBulkTools.TestCommon.Model;
-using SqlBulkTools.TestCommon;
 using System.Data;
+using SqlBulkTools.TestCommon;
+using SqlBulkTools.TestCommon.Model;
 using Xunit;
+// ReSharper disable CheckNamespace
 
 namespace SqlBulkTools.UnitTests
 {
@@ -118,10 +119,10 @@ namespace SqlBulkTools.UnitTests
         public void DataTableTools_PrepareDataTable_WithThreeColumnsAdded()
         {
             var randomizer = new BookRandomizer();
-
-            var dtOps = new DataTableOperations();
             var books = randomizer.GetRandomCollection(30);
-
+            
+            
+            var dtOps = new DataTableOperations();
             var dt = dtOps.SetupDataTable<Book>()
                 .ForCollection(books)
                 .AddColumn(x => x.ISBN)
@@ -137,7 +138,7 @@ namespace SqlBulkTools.UnitTests
         }
 
         [Fact]
-        public void DataTableTools_BuildPreparedDataDable_AddsRows()
+        public void DataTableTools_BuildPreparedDataTable_AddsRows()
         {
             var rowCount = 30;
             var randomizer = new BookRandomizer();
@@ -145,12 +146,12 @@ namespace SqlBulkTools.UnitTests
             var dtOps = new DataTableOperations();
             var books = randomizer.GetRandomCollection(rowCount);
 
+            // ReSharper disable once RedundantAssignment
             var dt = dtOps.SetupDataTable<Book>()
                 .ForCollection(books)
                 .AddAllColumns()
                 .PrepareDataTable();
-
-            dt = dtOps.BuildPreparedDataDable();
+            dt = dtOps.BuildPreparedDataTable();
 
             Assert.Equal(rowCount, dt.Rows.Count);
             Assert.Equal(books[10].ISBN, dt.Rows[10].Field<string>(dtOps.GetColumn<Book>(x => x.ISBN)));
@@ -158,7 +159,7 @@ namespace SqlBulkTools.UnitTests
         }
 
         [Fact]
-        public void DataTableTools_BuildPreparedDataDable_WithCustomDataTableSettings()
+        public void DataTableTools_BuildPreparedDataTable_WithCustomDataTableSettings()
         {
             const long autoIncrementSeedTest = 21312;
             var randomizer = new BookRandomizer();
@@ -173,7 +174,7 @@ namespace SqlBulkTools.UnitTests
 
             dt.Columns[dtOps.GetColumn<Book>(x => x.Id)].AutoIncrementSeed = autoIncrementSeedTest;
 
-            dt = dtOps.BuildPreparedDataDable();
+            dt = dtOps.BuildPreparedDataTable();
 
             Assert.Equal(dt.Columns[dtOps.GetColumn<Book>(x => x.Id)].AutoIncrementSeed, autoIncrementSeedTest);
 

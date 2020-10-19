@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Dynamic;
+// ReSharper disable UnusedMember.Global
 
+// ReSharper disable once CheckNamespace
 namespace SqlBulkTools
 {
     /// <summary>
@@ -46,7 +48,7 @@ namespace SqlBulkTools
         internal DataTable Prepare(SqlConnection conn, string schema, string tableName)
         {
             var sk = new SchemaKey(conn.Database, schema, tableName);
-            if (schemaCache.TryGetValue(sk, out var result))
+            if (_schemaCache.TryGetValue(sk, out var result))
                 return result;
 
             if (conn.State != ConnectionState.Open)
@@ -62,40 +64,41 @@ namespace SqlBulkTools
                 throw new SqlBulkToolsException($"Table name '{tableName}' not found. Check your setup and try again.");
             }
 
-            schemaCache[sk] = dtCols;
+            _schemaCache[sk] = dtCols;
             return dtCols;
         }
 
         class SchemaKey
         {
-            public readonly string Database, Schema, TableName;
+            private readonly string _database, _schema, _tableName;
             public SchemaKey(string database, string schema, string tableName)
             {
-                this.Database = database;
-                this.Schema = schema;
-                this.TableName = tableName;
+                _database = database;
+                _schema = schema;
+                _tableName = tableName;
             }
 
-            public string[] ToRestrictions() => new string[4]
+            public string[] ToRestrictions() => new[]
             {
-                Database,
-                Schema,
-                TableName,
+                _database,
+                _schema,
+                _tableName,
                 null
             };
 
             public override int GetHashCode()
             {
-                return Database.GetHashCode() ^ Schema.GetHashCode() ^ TableName.GetHashCode();
+                return _database.GetHashCode() ^ _schema.GetHashCode() ^ _tableName.GetHashCode();
             }
             public override bool Equals(object obj)
             {
                 return obj is SchemaKey sk
-                    && sk.Database == Database
-                    && sk.Schema == Schema
-                    && sk.TableName == TableName;
+                    && sk._database == _database
+                    && sk._schema == _schema
+                    && sk._tableName == _tableName;
             }
         }
-        Dictionary<SchemaKey, DataTable> schemaCache = new Dictionary<SchemaKey, DataTable>();
+
+        private readonly Dictionary<SchemaKey, DataTable> _schemaCache = new Dictionary<SchemaKey, DataTable>();
     }
 }

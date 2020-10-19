@@ -16,7 +16,7 @@ namespace SqlBulkTools
         private readonly IEnumerable<T> _list;
         private readonly DataTableOperations _ext;
         private readonly Dictionary<string, int> _ordinalDic;
-        private List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropertyInfo> _propertyInfoList;
 
         /// <summary>
         /// 
@@ -48,7 +48,7 @@ namespace SqlBulkTools
         /// <returns></returns>
         public DataTableAllColumnSelect<T> AddAllColumns()
         {
-            Columns = BulkOperationsHelper.GetAllValueTypeAndStringColumns(_propertyInfoList, typeof(T));
+            Columns = BulkOperationsHelper.GetAllValueTypeAndStringColumns(_propertyInfoList);
             return new DataTableAllColumnSelect<T>(_ext, _list, Columns, _ordinalDic, _propertyInfoList);
         }
 

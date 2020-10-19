@@ -1,4 +1,6 @@
-﻿namespace SqlBulkTools.TestCommon.Model
+﻿// ReSharper disable CheckNamespace
+
+namespace SqlBulkTools.TestCommon.Model
 {
     public class BookDto
     {

@@ -51,9 +51,9 @@ namespace SqlBulkTools
         /// See documentation for examples. https://github.com/gtaylor44/SqlBulkTools 
         /// </summary>
         /// <returns>Populated DataTable</returns>
-        public DataTable BuildPreparedDataDable()
+        public DataTable BuildPreparedDataTable()
         {
-            this.CheckSetup();
+            CheckSetup();
 
             return _dataTableTransaction.BuildDataTable();
         }
@@ -69,17 +69,15 @@ namespace SqlBulkTools
         public string GetColumn<T>(Expression<Func<T, object>> columnName)
         {
 
-            this.CheckType(typeof(T));
-            this.CheckSetup();          
+            CheckType(typeof(T));
+            CheckSetup();          
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
-            this.CheckRemovedColumns(propertyName);
+            CheckRemovedColumns(propertyName);
 
             if (_customColumnMappings != null)
             {
-                string customColumn;
-
-                if (_customColumnMappings.TryGetValue(propertyName, out customColumn))
+                if (_customColumnMappings.TryGetValue(propertyName, out var customColumn))
                     return customColumn;
                 
             }
@@ -100,12 +98,11 @@ namespace SqlBulkTools
             }
         }
 
+        // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
         private void CheckType(Type type)
         {
             if (_expectedType != null && _expectedType != type)
-            {
                 throw new SqlBulkToolsException("GetColumn can only retrieve columns of type \'" + _expectedType.Name + "\'");
-            }
         }
 
         private void CheckRemovedColumns(string propertyName)

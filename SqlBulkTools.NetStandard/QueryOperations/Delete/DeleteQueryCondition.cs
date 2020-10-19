@@ -4,6 +4,8 @@ using System.Data.SqlClient;
 using System.Linq.Expressions;
 using SqlBulkTools.Enumeration;
 
+// ReSharper disable UnusedMember.Global
+
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
 {
@@ -26,8 +28,8 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="tableName"></param>
         /// <param name="schema"></param>
-        /// <param name="sqlTimeout"></param>
-        public DeleteQueryCondition(string tableName, string schema, int sqlTimeout)
+        ///// <param name="sqlTimeout"></param>
+        public DeleteQueryCondition(string tableName, string schema) //, int sqlTimeout = 0)
         {
             _tableName = tableName;
             _schema = schema;
@@ -89,7 +91,7 @@ namespace SqlBulkTools
 
             _conditionSortOrder++;
 
-            string leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.Or, "Collation");
+            var leftName = BulkOperationsHelper.GetExpressionLeftName(expression, PredicateType.Or, "Collation");
             _collationColumnDic.Add(BulkOperationsHelper.GetActualColumn(_customColumnMappings, leftName), collation);
 
             return new DeleteQueryReady<T>(_tableName, _schema, _conditionSortOrder,

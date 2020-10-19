@@ -1,4 +1,6 @@
-﻿ // ReSharper disable once CheckNamespace
+﻿// ReSharper disable CheckNamespace
+// ReSharper disable UnusedMember.Global
+
 namespace SqlBulkTools
 {
     internal static class Constants

@@ -4,6 +4,8 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+// ReSharper disable CheckNamespace
+// ReSharper disable UnusedMember.Global
 
 namespace SqlBulkTools.QueryOperations
 {
@@ -17,7 +19,6 @@ namespace SqlBulkTools.QueryOperations
         private HashSet<string> Columns { get; set; }
         private string _schema;
         private readonly string _tableName;
-        private Dictionary<string, string> CustomColumnMappings { get; set; }
         private readonly List<SqlParameter> _sqlParams;
         private readonly List<PropertyInfo> _propertyInfoList;
 
@@ -33,10 +34,7 @@ namespace SqlBulkTools.QueryOperations
             _singleEntity = singleEntity;
             _schema = schema;
             Columns = new HashSet<string>();
-            CustomColumnMappings = new Dictionary<string, string>();
             _tableName = tableName;
-            Columns = new HashSet<string>();
-            CustomColumnMappings = new Dictionary<string, string>();
             _sqlParams = sqlParams;
             _propertyInfoList = typeof(T).GetProperties().OrderBy(x => x.Name).ToList();
         }
@@ -59,7 +57,7 @@ namespace SqlBulkTools.QueryOperations
         /// <returns></returns>
         public QueryAddColumnList<T> AddAllColumns()
         {
-            Columns = BulkOperationsHelper.GetAllValueTypeAndStringColumns(_propertyInfoList, typeof(T));
+            Columns = BulkOperationsHelper.GetAllValueTypeAndStringColumns(_propertyInfoList);
 
             return new QueryAddColumnList<T>(_singleEntity, _tableName, Columns, _schema, _sqlParams, _propertyInfoList);
         }

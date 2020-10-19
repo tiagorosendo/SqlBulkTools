@@ -20,6 +20,9 @@ using SqlBulkTools.Enumeration;
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public static class BulkOperationsHelper
     {
         internal static Table GetTableAndSchema(string tableName)
@@ -45,18 +48,15 @@ namespace SqlBulkTools
             var schemaMatch = Regex.Match(sb.ToString(), @"^([^.]*)");
             var schema = schemaMatch.Success ? schemaMatch.Value : sb.ToString();
 
-            var table = new Table();
-            table.Name = tableName;
-            table.Schema = schema;
+            var table = new Table {Name = tableName, Schema = schema};
 
             return table;
         }
 
         internal static string GetActualColumn(Dictionary<string, string> customColumnMappings, string propertyName)
         {
-            string actualPropertyName;
 
-            if (customColumnMappings.TryGetValue(propertyName, out actualPropertyName))
+            if (customColumnMappings.TryGetValue(propertyName, out string actualPropertyName))
                 return actualPropertyName;
 
             return propertyName;
@@ -108,8 +108,7 @@ namespace SqlBulkTools
             {
                 if (column == Constants.InternalId)
                     continue;
-                string columnType;
-                if (actualColumns.TryGetValue(column, out columnType))
+                if (actualColumns.TryGetValue(column, out var columnType))
                 {
                     columnType = GetVariableCharType(column, columnType, actualColumnsMaxCharLength);
                     columnType = GetDecimalPrecisionAndScaleType(column, columnType, actualColumnsNumericPrecision);
@@ -151,8 +150,7 @@ namespace SqlBulkTools
                 columnType == "char" || columnType == "binary" ||
                 columnType == "varbinary" || columnType == "nchar")
             {
-                string maxCharLength;
-                if (actualColumnsMaxCharLength.TryGetValue(column, out maxCharLength))
+                if (actualColumnsMaxCharLength.TryGetValue(column, out var maxCharLength))
                 {
                     if (maxCharLength == "-1")
                         maxCharLength = "max";
@@ -169,9 +167,7 @@ namespace SqlBulkTools
         {
             if (columnType == "decimal" || columnType == "numeric")
             {
-                PrecisionType p;
-
-                if (actualColumnsPrecision.TryGetValue(column, out p))
+                if (actualColumnsPrecision.TryGetValue(column, out var p))
                     columnType = columnType + "(" + p.NumericPrecision + ", " + p.NumericScale + ")";
             }
 
@@ -183,8 +179,7 @@ namespace SqlBulkTools
         {
             if (columnType == "datetime2" || columnType == "time")
             {
-                string dateTimePrecision;
-                if (actualColumnsDateTimePrecision.TryGetValue(column, out dateTimePrecision))
+                if (actualColumnsDateTimePrecision.TryGetValue(column, out var dateTimePrecision))
                     columnType = columnType + "(" + dateTimePrecision + ")";
             }
 
@@ -210,9 +205,7 @@ namespace SqlBulkTools
         internal static string BuildNullCondition(string updateOn, string sourceAlias, string targetAlias,
             Dictionary<string, bool> nullableColumnDic)
         {
-            bool isColumnNullable;
-
-            if (nullableColumnDic.TryGetValue(updateOn, out isColumnNullable) && isColumnNullable)
+            if (nullableColumnDic.TryGetValue(updateOn, out var isColumnNullable) && isColumnNullable)
                 return $" OR ([{targetAlias}].[{updateOn}] IS NULL AND [{sourceAlias}].[{updateOn}] IS NULL)";
 
             return string.Empty;
@@ -223,10 +216,7 @@ namespace SqlBulkTools
             if (collationDic == null)
                 return string.Empty;
 
-            string collateColumn = null;
-            if (collationDic.TryGetValue(column, out collateColumn)) return $" COLLATE {collateColumn}";
-
-            return string.Empty;
+            return collationDic.TryGetValue(column, out var collateColumn) ? $" COLLATE {collateColumn}" : string.Empty;
         }
 
         internal static string BuildMatchTargetOnList(HashSet<string> matchTargetOnColumns,
@@ -239,16 +229,12 @@ namespace SqlBulkTools
             sb.Append(
                 $"WHERE [{whereClauseColumn}] = @{whereClauseColumn}{GetCollation(collationDic, whereClauseColumn)}");
 
-            if (matchTargetOnColumns.Count() > 1)
-                foreach (var column in matchTargetOnColumns)
-                {
-                    if (column.Equals(matchTargetOnColumns.ElementAt(0)))
-                        continue;
-
-                    var andClauseColumn = GetActualColumn(customColumnMappings, column);
-                    sb.Append(
-                        $" AND [{andClauseColumn}] = @{andClauseColumn}{GetCollation(collationDic, andClauseColumn)}");
-                }
+            if (matchTargetOnColumns.Count <= 1) return sb.ToString();
+            foreach (var andClauseColumn in from column in matchTargetOnColumns where !column.Equals(matchTargetOnColumns.ElementAt(0)) select GetActualColumn(customColumnMappings, column))
+            {
+                sb.Append(
+                    $" AND [{andClauseColumn}] = @{andClauseColumn}{GetCollation(collationDic, andClauseColumn)}");
+            }
 
             return sb.ToString();
         }
@@ -394,7 +380,7 @@ namespace SqlBulkTools
         }
 
         /// <summary>
-        ///     Specificially for UpdateQuery and DeleteQuery
+        ///     Specifically for UpdateQuery and DeleteQuery
         /// </summary>
         /// <param name="columns"></param>
         /// <param name="excludeFromUpdate"></param>
@@ -609,6 +595,17 @@ namespace SqlBulkTools
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="propertyInfoList"></param>
+        /// <param name="dataTable"></param>
+        /// <param name="list"></param>
+        /// <param name="columns"></param>
+        /// <param name="ordinalDic"></param>
+        /// <param name="outputIdentityDic"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public static DataTable ConvertListToDataTable<T>(List<PropertyInfo> propertyInfoList, DataTable dataTable,
             IEnumerable<T> list, HashSet<string> columns, Dictionary<string, int> ordinalDic,
             Dictionary<int, T> outputIdentityDic = null)
@@ -672,8 +669,11 @@ namespace SqlBulkTools
                 if (isComplex)
                 {
                     var complexType = item.GetType().GetProperty(basePropertyName);
-                    var value = complexType.GetValue(item, null);
-                    values[ordinal] = property.GetValue(value, null);
+                    if (!(complexType is null))
+                    {
+                        var value = complexType.GetValue(item, null);
+                        values[ordinal] = property.GetValue(value, null);
+                    }
                 }
                 else
                 {
@@ -683,6 +683,17 @@ namespace SqlBulkTools
         }
 
         // Loops through object properties, checks if column has been added, adds as sql parameter. 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="propertyInfoList"></param>
+        /// <param name="sqlParameters"></param>
+        /// <param name="columns"></param>
+        /// <param name="item"></param>
+        /// <param name="identityColumn"></param>
+        /// <param name="direction"></param>
+        /// <param name="customColumns"></param>
+        /// <typeparam name="T"></typeparam>
         public static void AddSqlParamsForQuery<T>(List<PropertyInfo> propertyInfoList,
             List<SqlParameter> sqlParameters, HashSet<string> columns, T item,
             string identityColumn = null, ColumnDirectionType direction = ColumnDirectionType.Input,
@@ -703,10 +714,10 @@ namespace SqlBulkTools
                             var param = GetSqlParam<T>(complexProperty, customColumns, column);
 
                             var complexType = item.GetType().GetProperty(property.Name);
-                            var value = complexType.GetValue(item, null);
+                            var value = complexType?.GetValue(item, null);
 
-                            var propertyInfo = complexType.PropertyType.GetProperty(complexProperty.Name);
-                            var propValue = propertyInfo.GetValue(value, null);
+                            var propertyInfo = complexType?.PropertyType.GetProperty(complexProperty.Name);
+                            var propValue = propertyInfo?.GetValue(value, null);
 
                             param.Value = propValue ?? DBNull.Value;
 
@@ -730,7 +741,18 @@ namespace SqlBulkTools
                 }
         }
 
-        private static SqlParameter GetSqlParam<T>(PropertyInfo property, Dictionary<string, string> customColumns,
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="property"></param>
+        /// <param name="customColumns"></param>
+        /// <param name="column"></param>
+        /// <returns></returns>
+        // ReSharper disable once UnusedTypeParameter
+        private static SqlParameter GetSqlParam<T>(PropertyInfo property, IReadOnlyDictionary<string, string> customColumns,
             string column)
         {
             var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(property.PropertyType);
@@ -766,9 +788,9 @@ namespace SqlBulkTools
 
             if (throwIfInvalid)
                 throw new SqlBulkToolsException(
-                    $"Only value, string, char[], byte[], SqlGeometry, SqlGeography and SqlXml types can be used " +
-                    $"with SqlBulkTools. Refer to https://msdn.microsoft.com/en-us/library/cc716729(v=vs.110).aspx for " +
-                    $"more details.");
+                    "Only value, string, char[], byte[], SqlGeometry, SqlGeography and SqlXml types can be used " +
+                    "with SqlBulkTools. Refer to https://msdn.microsoft.com/en-us/library/cc716729(v=vs.110).aspx for " +
+                    "more details.");
 
             return false;
         }
@@ -849,19 +871,19 @@ namespace SqlBulkTools
         /// <summary>
         ///     Advanced Settings for SQLBulkCopy class.
         /// </summary>
-        /// <param name="bulkcopy"></param>
+        /// <param name="bulkCopy"></param>
         /// <param name="options"></param>
-        internal static void SetSqlBulkCopySettings(SqlBulkCopy bulkcopy, BulkCopySettings options)
+        internal static void SetSqlBulkCopySettings(SqlBulkCopy bulkCopy, BulkCopySettings options)
         {
-            bulkcopy.EnableStreaming = options.EnableStreaming;
-            bulkcopy.BatchSize = options.BatchSize;
-            bulkcopy.BulkCopyTimeout = options.BulkCopyTimeout;
+            bulkCopy.EnableStreaming = options.EnableStreaming;
+            bulkCopy.BatchSize = options.BatchSize;
+            bulkCopy.BulkCopyTimeout = options.BulkCopyTimeout;
 
             if (options.BulkCopyNotification == null) 
                 return;
             
-            bulkcopy.NotifyAfter = options.BulkCopyNotification.NotifyAfter;
-            bulkcopy.SqlRowsCopied += options.BulkCopyNotification.SqlRowsCopied;
+            bulkCopy.NotifyAfter = options.BulkCopyNotification.NotifyAfter;
+            bulkCopy.SqlRowsCopied += options.BulkCopyNotification.SqlRowsCopied;
         }
 
         /// <summary>
@@ -883,7 +905,7 @@ namespace SqlBulkTools
             }
         }
 
-        internal static HashSet<string> GetAllValueTypeAndStringColumns(List<PropertyInfo> propertyInfoList, Type type)
+        internal static HashSet<string> GetAllValueTypeAndStringColumns(List<PropertyInfo> propertyInfoList)
         {
             var columns = new HashSet<string>();
 
@@ -946,20 +968,20 @@ namespace SqlBulkTools
             return sb.ToString();
         }
 
-        internal static string GetOutputCreateTableCmd(ColumnDirectionType outputIdentity, string tmpTablename,
+        internal static string GetOutputCreateTableCmd(ColumnDirectionType outputIdentity, string tmpTableName,
             OperationType operation, string identityColumn)
         {
             switch (operation)
             {
                 case OperationType.Insert:
                     return outputIdentity == ColumnDirectionType.InputOutput
-                        ? $"CREATE TABLE {tmpTablename}([{identityColumn}] int); "
+                        ? $"CREATE TABLE {tmpTableName}([{identityColumn}] int); "
                         : string.Empty;
                 case OperationType.InsertOrUpdate:
                 case OperationType.Update:
                 case OperationType.Delete:
                     return outputIdentity == ColumnDirectionType.InputOutput
-                        ? $"CREATE TABLE {tmpTablename}([{Constants.InternalId}] int, [{identityColumn}] int); "
+                        ? $"CREATE TABLE {tmpTableName}([{Constants.InternalId}] int, [{identityColumn}] int); "
                         : string.Empty;
                 default:
                     return string.Empty;
@@ -977,7 +999,7 @@ namespace SqlBulkTools
         {
             var cmd =
                 $"DECLARE @sql AS VARCHAR(MAX)=''; SELECT @sql = @sql + 'ALTER INDEX ' + sys.indexes.name + ' ON ' + sys.objects.name + ' {action};' FROM sys.indexes " +
-                $"JOIN sys.objects ON sys.indexes.object_id = sys.objects.object_id WHERE sys.indexes.type_desc = 'NONCLUSTERED' AND sys.objects.type_desc = 'USER_TABLE' " +
+                "JOIN sys.objects ON sys.indexes.object_id = sys.objects.object_id WHERE sys.indexes.type_desc = 'NONCLUSTERED' AND sys.objects.type_desc = 'USER_TABLE' " +
                 $"AND sys.objects.name = '{GetFullQualifyingTableName(conn.Database, schema, tableName)}'; EXEC(@sql);";
 
             return cmd;
@@ -986,6 +1008,7 @@ namespace SqlBulkTools
         /// <summary>
         ///     Gets schema information for a table. Used to get SQL type of property.
         /// </summary>
+        /// <param name="bulk"></param>
         /// <param name="conn"></param>
         /// <param name="schema"></param>
         /// <param name="tableName"></param>
@@ -997,26 +1020,26 @@ namespace SqlBulkTools
 
         internal static void InsertToTmpTable(SqlConnection conn, DataTable dt, BulkCopySettings bulkCopySettings, SqlTransaction transaction)
         {
-            using (var bulkcopy = new SqlBulkCopy(conn, bulkCopySettings.SqlBulkCopyOptions, transaction))
+            using var bulkCopy = new SqlBulkCopy(conn, bulkCopySettings.SqlBulkCopyOptions, transaction)
             {
-                bulkcopy.DestinationTableName = Constants.TempTableName;
+                DestinationTableName = Constants.TempTableName
+            };
 
-                SetSqlBulkCopySettings(bulkcopy, bulkCopySettings);
+            SetSqlBulkCopySettings(bulkCopy, bulkCopySettings);
 
-                foreach (var column in dt.Columns) bulkcopy.ColumnMappings.Add(column.ToString(), column.ToString());
+            foreach (var column in dt.Columns) bulkCopy.ColumnMappings.Add(column.ToString(), column.ToString());
 
-                bulkcopy.WriteToServer(dt);
-            }
+            bulkCopy.WriteToServer(dt);
         }
 
         internal static void LoadFromTmpOutputTable<T>(SqlCommand command, string identityColumn,
             Dictionary<int, T> outputIdentityDic,
             OperationType operationType, IEnumerable<T> list)
         {
-            if (!typeof(T).GetProperty(identityColumn).CanWrite)
-                throw new SqlBulkToolsException(GetPrivateSetterExceptionMessage(identityColumn));
-
             var identityProperty = typeof(T).GetProperty(identityColumn);
+
+            if (identityProperty == null || !identityProperty.CanWrite)
+                throw new SqlBulkToolsException(GetPrivateSetterExceptionMessage(identityColumn));
 
             switch (operationType)
             {
@@ -1064,10 +1087,12 @@ namespace SqlBulkTools
         internal static async Task LoadFromTmpOutputTableAsync<T>(SqlCommand command, string identityColumn,
             Dictionary<int, T> outputIdentityDic, OperationType operationType, IEnumerable<T> list)
         {
-            if (!typeof(T).GetProperty(identityColumn).CanWrite)
+            var identityProperty = typeof(T).GetProperty(identityColumn);
+
+            if (identityProperty == null || !identityProperty.CanWrite)
                 throw new SqlBulkToolsException(GetPrivateSetterExceptionMessage(identityColumn));
 
-            var identityProperty = typeof(T).GetProperty(identityColumn);
+            
 
             switch (operationType)
             {
@@ -1152,9 +1177,7 @@ namespace SqlBulkTools
             string value;
             PredicateCondition condition;
 
-            var binaryBody = predicate.Body as BinaryExpression;
-
-            if (binaryBody == null)
+            if (!(predicate.Body is BinaryExpression binaryBody))
                 throw new SqlBulkToolsException(
                     $"Expression not supported for {GetPredicateMethodName(predicateType)}");
 
@@ -1162,9 +1185,9 @@ namespace SqlBulkTools
 
             if (((MemberExpression) binaryBody.Left).Expression.Type.GetCustomAttribute(typeof(ComplexTypeAttribute)) !=
                 null
-                && ((MemberExpression) binaryBody.Left).Expression is MemberExpression)
+                && ((MemberExpression) binaryBody.Left).Expression is MemberExpression expression)
                 leftName =
-                    $"{((MemberExpression) ((MemberExpression) binaryBody.Left).Expression).Member.Name}_{leftName}";
+                    $"{expression.Member.Name}_{leftName}";
 
             // For expression types Equal and NotEqual, it's possible for user to pass null value. This handles the null use case. 
             // SqlParameter is not added when comparison to null value is used. 
@@ -1191,8 +1214,10 @@ namespace SqlBulkTools
                         var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(condition.ValueType);
 
                         var paramName = appendParam != null ? leftName + appendParam + sortOrder : leftName;
-                        var param = new SqlParameter($"@{paramName}", sqlType);
-                        param.Value = condition.Value;
+                        var param = new SqlParameter($"@{paramName}", sqlType)
+                        {
+                            Value = condition.Value
+                        };
                         sqlParamsList.Add(param);
                     }
                     else
@@ -1234,8 +1259,10 @@ namespace SqlBulkTools
 
                         var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(condition.ValueType);
                         var paramName = appendParam != null ? leftName + appendParam + sortOrder : leftName;
-                        var param = new SqlParameter($"@{paramName}", sqlType);
-                        param.Value = condition.Value;
+                        var param = new SqlParameter($"@{paramName}", sqlType)
+                        {
+                            Value = condition.Value
+                        };
                         sqlParamsList.Add(param);
                     }
                     else
@@ -1306,7 +1333,7 @@ namespace SqlBulkTools
                 {
                     throw new SqlBulkToolsException(
                         $"Expression used in {GetPredicateMethodName(predicateType)} not supported. " +
-                        $"Only == != < <= > >= expressions are accepted.");
+                        "Only == != < <= > >= expressions are accepted.");
                 }
             }
         }
@@ -1314,9 +1341,7 @@ namespace SqlBulkTools
         internal static string GetExpressionLeftName<T>(Expression<Func<T, bool>> predicate,
             PredicateType predicateType, string columnType)
         {
-            var binaryBody = predicate.Body as BinaryExpression;
-
-            if (binaryBody == null)
+            if (!(predicate.Body is BinaryExpression binaryBody))
                 throw new SqlBulkToolsException(
                     $"Expression not supported for {GetPredicateMethodName(predicateType)}");
 
@@ -1377,8 +1402,10 @@ namespace SqlBulkTools
 
             var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(condition.ValueType);
             var paramName = appendParam != null ? leftName + appendParam + sortOrder : leftName;
-            var param = new SqlParameter($"@{paramName}", sqlType);
-            param.Value = condition.Value;
+            var param = new SqlParameter($"@{paramName}", sqlType)
+            {
+                Value = condition.Value
+            };
             sqlParamsList.Add(param);
         }
 

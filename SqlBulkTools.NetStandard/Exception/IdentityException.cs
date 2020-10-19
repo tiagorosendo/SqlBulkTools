@@ -1,6 +1,6 @@
-﻿// ReSharper disable once CheckNamespace
-
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
+// ReSharper disable CheckNamespace
+// ReSharper disable UnusedMember.Global
 
 [assembly: InternalsVisibleTo("SqlBulkTools.UnitTests")]
 [assembly: InternalsVisibleTo("SqlBulkTools.IntegrationTests")]

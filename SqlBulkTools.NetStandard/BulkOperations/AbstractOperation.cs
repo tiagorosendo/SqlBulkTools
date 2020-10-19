@@ -5,6 +5,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using SqlBulkTools.Enumeration;
 
+// ReSharper disable UnusedMember.Global
+
+// ReSharper disable once CheckNamespace
 namespace SqlBulkTools
 {
     /// <summary>
@@ -13,7 +16,7 @@ namespace SqlBulkTools
     public abstract class AbstractOperation<T>
     {
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        protected readonly BulkOperations bulk;
+        protected readonly BulkOperations _bulk;
         // ReSharper disable InconsistentNaming
         protected ColumnDirectionType _outputIdentity;
         protected string _identityColumn;
@@ -40,6 +43,7 @@ namespace SqlBulkTools
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="bulk"></param>
         /// <param name="list"></param>
         /// <param name="tableName"></param>
         /// <param name="schema"></param>
@@ -50,7 +54,7 @@ namespace SqlBulkTools
         protected AbstractOperation(BulkOperations bulk, IEnumerable<T> list, string tableName, string schema, HashSet<string> columns,
             Dictionary<string, string> customColumnMappings, BulkCopySettings bulkCopySettings, List<PropertyInfo> propertyInfoList)
         {
-            this.bulk = bulk;
+            _bulk = bulk;
             _list = list;
             _tableName = tableName;
             _schema = schema;
@@ -96,7 +100,7 @@ namespace SqlBulkTools
         /// <returns></returns>
         public static TParameter GetParameterValue<TParameter>(Expression<Func<TParameter>> parameterToCheck)
         {
-            TParameter parameterValue = (TParameter)parameterToCheck.Compile().Invoke();
+            var parameterValue = parameterToCheck.Compile().Invoke();
 
             return parameterValue;
         }

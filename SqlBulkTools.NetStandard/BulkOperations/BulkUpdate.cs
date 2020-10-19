@@ -1,5 +1,4 @@
-﻿using SqlBulkTools.Enumeration;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -7,7 +6,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
+using SqlBulkTools.Enumeration;
 
+// ReSharper disable UnusedMember.Global
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
 {
@@ -22,6 +23,7 @@ namespace SqlBulkTools
         /// <summary>
         /// Updates existing records in bulk.
         /// </summary>
+        /// <param name="bulk"></param>
         /// <param name="list"></param>
         /// <param name="tableName"></param>
         /// <param name="schema"></param>
@@ -41,7 +43,7 @@ namespace SqlBulkTools
         }
 
         /// <summary>
-        /// Only update records when the target satisfies a speicific requirement. This is used in conjunction with MatchTargetOn.
+        /// Only update records when the target satisfies a specific requirement. This is used in conjunction with MatchTargetOn.
         /// See help docs for examples.
         /// </summary>
         /// <param name="predicate"></param>
@@ -57,7 +59,7 @@ namespace SqlBulkTools
 
         /// <summary>
         /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
-        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// each row in table. This is usually set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
         /// for matching composite relationships.
         /// </summary>
         /// <param name="columnName"></param>
@@ -76,7 +78,7 @@ namespace SqlBulkTools
 
         /// <summary>
         /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
-        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// each row in table. This is usually set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
         /// for matching composite relationships.
         /// </summary>
         /// <param name="columnName"></param>
@@ -90,7 +92,7 @@ namespace SqlBulkTools
                 throw new NullReferenceException("MatchTargetOn column name can't be null.");
 
             _matchTargetOn.Add(propertyName);
-            base.SetCollation(propertyName, collation);
+            SetCollation(propertyName, collation);
 
             return this;
         }
@@ -103,7 +105,7 @@ namespace SqlBulkTools
         /// <returns></returns>
         public BulkUpdate<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
         {
-            base.SetIdentity(columnName);
+            SetIdentity(columnName);
             return this;
         }
 
@@ -116,12 +118,12 @@ namespace SqlBulkTools
         /// <returns></returns>
         public BulkUpdate<T> SetIdentityColumn(Expression<Func<T, object>> columnName, ColumnDirectionType outputIdentity)
         {
-            base.SetIdentity(columnName, outputIdentity);
+            SetIdentity(columnName, outputIdentity);
             return this;
         }
 
         /// <summary>
-        /// Sets the table hint to be used in the merge query. HOLDLOCk is the default that will be used if one is not set.
+        /// Sets the table hint to be used in the merge query. HOLDLOCK is the default that will be used if one is not set.
         /// </summary>
         /// <param name="tableHint"></param>
         /// <returns></returns>
@@ -131,6 +133,13 @@ namespace SqlBulkTools
             return this;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public int Commit(IDbConnection connection, IDbTransaction transaction = null)
         {
             if (connection is SqlConnection == false)
@@ -144,19 +153,20 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         /// <exception cref="IdentityException"></exception>
         public int Commit(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (!_list.Any())
             {
                 return affectedRows;
             }
 
-            base.MatchTargetCheck();
+            MatchTargetCheck();
 
-            DataTable dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn, _outputIdentity);
+            var dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn, _outputIdentity);
             dt = BulkOperationsHelper.ConvertListToDataTable(_propertyInfoList, dt, _list, _columns, _ordinalDic, _outputIdentityDic);
 
             // Must be after ToDataTable is called.
@@ -166,11 +176,11 @@ namespace SqlBulkTools
             if (connection.State == ConnectionState.Closed)
                 connection.Open();
 
-            var dtCols = BulkOperationsHelper.GetDatabaseSchema(bulk, connection, _schema, _tableName);
+            var dtCols = BulkOperationsHelper.GetDatabaseSchema(_bulk, connection, _schema, _tableName);
 
             try
             {
-                SqlCommand command = connection.CreateCommand();
+                var command = connection.CreateCommand();
                 command.Connection = connection;
                 command.CommandTimeout = _sqlTimeout;
                 command.Transaction = transaction;
@@ -184,7 +194,7 @@ namespace SqlBulkTools
                 //Bulk insert into temp table
                 BulkOperationsHelper.InsertToTmpTable(connection, dt, _bulkCopySettings, transaction);
 
-                string comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
+                var comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
                 OperationType.InsertOrUpdate, _identityColumn);
 
                 if (!string.IsNullOrWhiteSpace(comm))
@@ -213,12 +223,12 @@ namespace SqlBulkTools
             }
             catch (SqlException e)
             {
-                for (int i = 0; i < e.Errors.Count; i++)
+                for (var i = 0; i < e.Errors.Count; i++)
                 {
                     // Error 8102 is identity error.
                     if (e.Errors[i].Number == 8102)
                     {
-                        // Expensive call but neccessary to inform user of an important configuration setup.
+                        // Expensive call but necessary to inform user of an important configuration setup.
                         throw new IdentityException(e.Errors[i].Message);
                     }
                 }
@@ -231,19 +241,20 @@ namespace SqlBulkTools
         /// successful.
         /// </summary>
         /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         /// <returns></returns>
         /// <exception cref="IdentityException"></exception>
         public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
         {
-            int affectedRows = 0;
+            var affectedRows = 0;
             if (!_list.Any())
             {
                 return affectedRows;
             }
 
-            base.MatchTargetCheck();
+            MatchTargetCheck();
 
-            DataTable dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn, _outputIdentity);
+            var dt = BulkOperationsHelper.CreateDataTable<T>(_propertyInfoList, _columns, _customColumnMappings, _ordinalDic, _matchTargetOn, _outputIdentity);
             dt = BulkOperationsHelper.ConvertListToDataTable(_propertyInfoList, dt, _list, _columns, _ordinalDic, _outputIdentityDic);
 
             // Must be after ToDataTable is called.
@@ -253,11 +264,11 @@ namespace SqlBulkTools
             if (connection.State == ConnectionState.Closed)
                 await connection.OpenAsync();
 
-            var dtCols = BulkOperationsHelper.GetDatabaseSchema(bulk, connection, _schema, _tableName);
+            var dtCols = BulkOperationsHelper.GetDatabaseSchema(_bulk, connection, _schema, _tableName);
 
             try
             {
-                SqlCommand command = connection.CreateCommand();
+                var command = connection.CreateCommand();
                 command.Connection = connection;
                 command.CommandTimeout = _sqlTimeout;
                 command.Transaction = transaction;
@@ -271,7 +282,7 @@ namespace SqlBulkTools
                 //Bulk insert into temp table
                 BulkOperationsHelper.InsertToTmpTable(connection, dt, _bulkCopySettings, transaction);
 
-                string comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
+                var comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
                 OperationType.InsertOrUpdate, _identityColumn);
 
                 if (!string.IsNullOrWhiteSpace(comm))
@@ -293,19 +304,19 @@ namespace SqlBulkTools
 
                 if (_outputIdentity == ColumnDirectionType.InputOutput)
                 {
-                    BulkOperationsHelper.LoadFromTmpOutputTable(command, _identityColumn, _outputIdentityDic, OperationType.InsertOrUpdate, _list);
+                    await BulkOperationsHelper.LoadFromTmpOutputTableAsync(command, _identityColumn, _outputIdentityDic, OperationType.InsertOrUpdate, _list);
                 }
 
                 return affectedRows;
             }
             catch (SqlException e)
             {
-                for (int i = 0; i < e.Errors.Count; i++)
+                for (var i = 0; i < e.Errors.Count; i++)
                 {
                     // Error 8102 is identity error.
                     if (e.Errors[i].Number == 8102)
                     {
-                        // Expensive call but neccessary to inform user of an important configuration setup.
+                        // Expensive call but necessary to inform user of an important configuration setup.
                         throw new IdentityException(e.Errors[i].Message);
                     }
                 }
@@ -315,16 +326,16 @@ namespace SqlBulkTools
 
         private string GetCommand(SqlConnection connection)
         {
-            string comm = "MERGE INTO " + BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema, _tableName) + $" WITH ({_tableHint}) AS Target " +
-                              "USING " + Constants.TempTableName + " AS Source " +
-                              BulkOperationsHelper.BuildJoinConditionsForInsertOrUpdate(_matchTargetOn.ToArray(),
-                                  Constants.SourceAlias, Constants.TargetAlias, base._collationColumnDic, _nullableColumnDic) +
-                              "WHEN MATCHED " + BulkOperationsHelper.BuildPredicateQuery(_matchTargetOn.ToArray(), _updatePredicates, Constants.TargetAlias, base._collationColumnDic) +
-                              "THEN UPDATE " +
-                              BulkOperationsHelper.BuildUpdateSet(_columns, Constants.SourceAlias, Constants.TargetAlias, _identityColumn) +
-                              BulkOperationsHelper.GetOutputIdentityCmd(_identityColumn, _outputIdentity, Constants.TempOutputTableName,
-                              OperationType.Update) + "; " +
-                              "DROP TABLE " + Constants.TempTableName + ";";
+            var comm = "MERGE INTO " + BulkOperationsHelper.GetFullQualifyingTableName(connection.Database, _schema, _tableName) + $" WITH ({_tableHint}) AS Target " +
+                       "USING " + Constants.TempTableName + " AS Source " +
+                       BulkOperationsHelper.BuildJoinConditionsForInsertOrUpdate(_matchTargetOn.ToArray(),
+                           Constants.SourceAlias, Constants.TargetAlias, _collationColumnDic, _nullableColumnDic) +
+                       "WHEN MATCHED " + BulkOperationsHelper.BuildPredicateQuery(_matchTargetOn.ToArray(), _updatePredicates, Constants.TargetAlias, _collationColumnDic) +
+                       "THEN UPDATE " +
+                       BulkOperationsHelper.BuildUpdateSet(_columns, Constants.SourceAlias, Constants.TargetAlias, _identityColumn) +
+                       BulkOperationsHelper.GetOutputIdentityCmd(_identityColumn, _outputIdentity, Constants.TempOutputTableName,
+                           OperationType.Update) + "; " +
+                       "DROP TABLE " + Constants.TempTableName + ";";
 
             return comm;
         }

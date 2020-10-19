@@ -46,7 +46,7 @@ namespace SqlBulkTools
         /// <param name="ext"></param>
         public Setup(BulkOperations ext)
         {
-            this._ext = ext;
+            _ext = ext;
             _sqlParams = new List<SqlParameter>();
         }
 
