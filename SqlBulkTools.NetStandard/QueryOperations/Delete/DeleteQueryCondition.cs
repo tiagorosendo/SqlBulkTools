@@ -50,7 +50,7 @@ namespace SqlBulkTools
         /// The actual name of column as represented in SQL table. 
         /// </param>
         /// <returns></returns>
-        public DeleteQueryCondition<T> CustomColumnMapping(Expression<Func<T, object>> source, string destination)
+        public DeleteQueryCondition<T> CustomColumnMapping<TProp>(Expression<Func<T, TProp>> source, string destination)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(source);
             _customColumnMappings.Add(propertyName, destination);

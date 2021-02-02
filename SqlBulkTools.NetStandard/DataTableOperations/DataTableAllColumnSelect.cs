@@ -37,7 +37,7 @@ namespace SqlBulkTools
         /// you can add a custom column mapping.   
         /// </summary>
         /// <returns></returns>
-        public DataTableAllColumnSelect<T> CustomColumnMapping(Expression<Func<T, object>> source, string destination)
+        public DataTableAllColumnSelect<T> CustomColumnMapping<TProp>(Expression<Func<T, TProp>> source, string destination)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(source);
             CustomColumnMappings.Add(propertyName, destination);
@@ -50,7 +50,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <returns></returns>
         /// <exception cref="SqlBulkToolsException"></exception>
-        public DataTableAllColumnSelect<T> RemoveColumn(Expression<Func<T, object>> columnName)
+        public DataTableAllColumnSelect<T> RemoveColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             if (_columns.Contains(propertyName))

@@ -74,7 +74,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <exception cref="SqlBulkToolsException"></exception>
 
-        protected void SetIdentity(Expression<Func<T, object>> columnName)
+        protected void SetIdentity<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
@@ -106,7 +106,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <param name="outputIdentity"></param>
-        protected void SetIdentity(Expression<Func<T, object>> columnName, ColumnDirectionType outputIdentity)
+        protected void SetIdentity<TProp>(Expression<Func<T, TProp>> columnName, ColumnDirectionType outputIdentity)
         {
             _outputIdentity = outputIdentity;
             SetIdentity(columnName);

@@ -33,14 +33,14 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName">Column name as represented in database</param>
         /// <returns></returns>
-        public BulkAddColumn<T> AddColumn(Expression<Func<T, object>> columnName)
+        public BulkAddColumn<T> AddColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             _columns.Add(propertyName);
             return this;
         }
 
-        public BulkAddColumn<T> AddColumns(params Expression<Func<T, object>>[] columnNames)
+        public BulkAddColumn<T> AddColumns<TProp>(params Expression<Func<T, TProp>>[] columnNames)
         {
             foreach (var column in columnNames)
                 AddColumn(column);
@@ -56,7 +56,7 @@ namespace SqlBulkTools
         /// If any of your model property names do not match 
         /// the SQL table column(s) as defined in given table, then use this overload to set up a custom mapping. </param>
         /// <returns></returns>
-        public BulkAddColumn<T> AddColumn(Expression<Func<T, object>> columnName, string destination)
+        public BulkAddColumn<T> AddColumn<TProp>(Expression<Func<T, TProp>> columnName, string destination)
         {
             if (destination == null)
                 throw new ArgumentNullException(nameof(destination));

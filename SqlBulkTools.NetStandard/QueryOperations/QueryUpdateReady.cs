@@ -69,7 +69,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public QueryUpdateReady<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
+        public QueryUpdateReady<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 

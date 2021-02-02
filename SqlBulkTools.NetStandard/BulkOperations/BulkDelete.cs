@@ -47,7 +47,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public BulkDelete<T> MatchTargetOn(Expression<Func<T, object>> columnName)
+        public BulkDelete<T> MatchTargetOn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
@@ -67,7 +67,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <param name="collation">Only explicitly set the collation if there is a collation conflict.</param>
         /// <returns></returns>
-        public BulkDelete<T> MatchTargetOn(Expression<Func<T, object>> columnName, string collation)
+        public BulkDelete<T> MatchTargetOn<TProp>(Expression<Func<T, TProp>> columnName, string collation)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
@@ -111,7 +111,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public BulkDelete<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
+        public BulkDelete<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             base.SetIdentity(columnName);
             return this;
@@ -124,7 +124,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <param name="outputIdentity"></param>
         /// <returns></returns>
-        public BulkDelete<T> SetIdentityColumn(Expression<Func<T, object>> columnName, ColumnDirectionType outputIdentity)
+        public BulkDelete<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName, ColumnDirectionType outputIdentity)
         {
             base.SetIdentity(columnName, outputIdentity);
             return this;

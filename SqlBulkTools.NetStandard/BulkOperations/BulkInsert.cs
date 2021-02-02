@@ -39,7 +39,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public BulkInsert<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
+        public BulkInsert<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             base.SetIdentity(columnName);
             return this;
@@ -52,7 +52,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <param name="outputIdentity"></param>
         /// <returns></returns>
-        public BulkInsert<T> SetIdentityColumn(Expression<Func<T, object>> columnName, ColumnDirectionType outputIdentity)
+        public BulkInsert<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName, ColumnDirectionType outputIdentity)
         {
             base.SetIdentity(columnName, outputIdentity);
             return this;

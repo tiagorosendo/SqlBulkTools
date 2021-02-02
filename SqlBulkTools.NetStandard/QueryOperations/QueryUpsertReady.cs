@@ -61,7 +61,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <param name="outputIdentity"></param>
         /// <returns></returns>
-        public QueryUpsertReady<T> SetIdentityColumn(Expression<Func<T, object>> columnName, ColumnDirectionType outputIdentity)
+        public QueryUpsertReady<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName, ColumnDirectionType outputIdentity)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             _outputIdentity = outputIdentity;
@@ -82,7 +82,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public QueryUpsertReady<T> ExcludeColumnFromUpdate(Expression<Func<T, object>> columnName)
+        public QueryUpsertReady<T> ExcludeColumnFromUpdate<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
@@ -104,7 +104,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public QueryUpsertReady<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
+        public QueryUpsertReady<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
@@ -126,7 +126,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public QueryUpsertReady<T> MatchTargetOn(Expression<Func<T, object>> columnName)
+        public QueryUpsertReady<T> MatchTargetOn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
@@ -146,7 +146,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <param name="collation">Only explicitly set the collation if there is a collation conflict.</param>
         /// <returns></returns>
-        public QueryUpsertReady<T> MatchTargetOn(Expression<Func<T, object>> columnName, string collation)
+        public QueryUpsertReady<T> MatchTargetOn<TProp>(Expression<Func<T, TProp>> columnName, string collation)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 

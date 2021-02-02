@@ -54,7 +54,7 @@ namespace SqlBulkTools.QueryOperations
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public QueryInsertReady<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
+        public QueryInsertReady<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
 
@@ -77,7 +77,7 @@ namespace SqlBulkTools.QueryOperations
         /// <param name="columnName"></param>
         /// <param name="direction"></param>
         /// <returns></returns>
-        public QueryInsertReady<T> SetIdentityColumn(Expression<Func<T, object>> columnName, ColumnDirectionType direction)
+        public QueryInsertReady<T> SetIdentityColumn<TProp>(Expression<Func<T, TProp>> columnName, ColumnDirectionType direction)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             _outputIdentity = direction;

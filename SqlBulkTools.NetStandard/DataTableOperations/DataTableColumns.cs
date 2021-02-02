@@ -35,7 +35,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public DataTableSingularColumnSelect<T> AddColumn(Expression<Func<T, object>> columnName)
+        public DataTableSingularColumnSelect<T> AddColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             Columns.Add(propertyName);

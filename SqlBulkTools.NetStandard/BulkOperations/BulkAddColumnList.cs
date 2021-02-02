@@ -41,7 +41,7 @@ namespace SqlBulkTools
         /// The actual name of column as represented in SQL table. 
         /// </param>
         /// <returns></returns>
-        public BulkAddColumnList<T> CustomColumnMapping(Expression<Func<T, object>> source, string destination)
+        public BulkAddColumnList<T> CustomColumnMapping<TProp>(Expression<Func<T, TProp>> source, string destination)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(source);
             _customColumnMappings.Add(propertyName, destination);
@@ -54,7 +54,7 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <returns></returns>
         /// <exception cref="SqlBulkToolsException"></exception>
-        public BulkAddColumnList<T> RemoveColumn(Expression<Func<T, object>> columnName)
+        public BulkAddColumnList<T> RemoveColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             if (_columns.Contains(propertyName))

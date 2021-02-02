@@ -78,7 +78,7 @@ namespace SqlBulkTools.QueryOperations
         /// <param name="columnName"></param>
         /// <returns></returns>
         /// <exception cref="SqlBulkToolsException"></exception>
-        public QueryAddColumnList<T> RemoveColumn(Expression<Func<T, object>> columnName)
+        public QueryAddColumnList<T> RemoveColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             if (_columns.Contains(propertyName))
@@ -104,7 +104,7 @@ namespace SqlBulkTools.QueryOperations
         /// The actual name of column as represented in SQL table. 
         /// </param>
         /// <returns></returns>
-        public QueryAddColumnList<T> CustomColumnMapping(Expression<Func<T, object>> source, string destination)
+        public QueryAddColumnList<T> CustomColumnMapping<TProp>(Expression<Func<T, TProp>> source, string destination)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(source);
             CustomColumnMappings.Add(propertyName, destination);

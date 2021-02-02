@@ -46,7 +46,7 @@ namespace SqlBulkTools.QueryOperations
         /// </summary>
         /// <param name="columnName">Column name as represented in database</param>
         /// <returns></returns>
-        public QueryAddColumn<T> AddColumn(Expression<Func<T, object>> columnName)
+        public QueryAddColumn<T> AddColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             Columns.Add(propertyName);

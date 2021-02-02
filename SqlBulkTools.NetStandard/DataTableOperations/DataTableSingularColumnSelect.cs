@@ -36,7 +36,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName">Column name as represented in database</param>
         /// <returns></returns>
-        public DataTableSingularColumnSelect<T> AddColumn(Expression<Func<T, object>> columnName)
+        public DataTableSingularColumnSelect<T> AddColumn<TProp>(Expression<Func<T, TProp>> columnName)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
             _columns.Add(propertyName);
@@ -48,7 +48,7 @@ namespace SqlBulkTools
         /// you can add a custom column mapping. 
         /// </summary>
         /// <returns></returns>
-        public DataTableSingularColumnSelect<T> CustomColumnMapping(Expression<Func<T, object>> source, string destination)
+        public DataTableSingularColumnSelect<T> CustomColumnMapping<TProp>(Expression<Func<T, TProp>> source, string destination)
         {
             var propertyName = BulkOperationsHelper.GetPropertyName(source);
             CustomColumnMappings.Add(propertyName, destination);
