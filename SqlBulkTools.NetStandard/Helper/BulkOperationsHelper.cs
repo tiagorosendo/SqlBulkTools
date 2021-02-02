@@ -65,7 +65,7 @@ namespace SqlBulkTools
         internal static string BuildCreateTempTable(HashSet<string> columns, DataTable schema,
             ColumnDirectionType outputIdentity)
         {
-            var actualColumns = new Dictionary<string, string>();
+            var actualColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var actualColumnsMaxCharLength = new Dictionary<string, string>();
             var actualColumnsNumericPrecision = new Dictionary<string, PrecisionType>();
             var actualColumnsDateTimePrecision = new Dictionary<string, string>();
