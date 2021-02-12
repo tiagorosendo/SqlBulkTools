@@ -9,7 +9,7 @@
     <PackageProjectUrl>https://github.com/JordanMarr/SqlBulkTools.FSharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/JordanMarr/SqlBulkTools.FSharp</RepositoryUrl>
     <PackageTags>sql bulk bulkinsert bulkupdate upsert fsharp</PackageTags>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +17,29 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SqlBulkTools.NetStandard\SqlBulkTools.NetStandard.csproj" />
+      <ProjectReference Include="..\SqlBulkTools.NetStandard\SqlBulkTools.NetStandard.csproj">
+          <PrivateAssets>all</PrivateAssets>
+      </ProjectReference>
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.7.2" />
+  </ItemGroup>
+
+  <!--
+    The following solves the problem that 'dotnet pack' does not include the DLLs from referenced projects.
+    See https://github.com/NuGet/Home/issues/3891 for a description of the problem
+    and for newer versions / workarounds / built-in methods.
+  -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
+    <!-- include PDBs in the NuGet package -->
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+  </PropertyGroup>
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')-&gt;WithMetadataValue('PrivateAssets', 'all'))" />
+    </ItemGroup>
+  </Target>
 
 </Project>

@@ -1,7 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>7.2</LangVersion>
+    <Company />
+    <Product />
+    <Version>1.0.0</Version>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugSymbols>true</DebugSymbols>
@@ -11,16 +17,6 @@
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.5.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.5.1" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <Authors>tiagorosendo, zek99, gtaylor44</Authors>
-    <RepositoryUrl>https://github.com/tiagorosendo/SqlBulkTools</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/tiagorosendo/SqlBulkTools</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/tiagorosendo/SqlBulkTools/blob/master/LICENSE</PackageLicenseUrl>
-    <PackageTags>SQL BULK BULKINSERT BULKUPDATE</PackageTags>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-  </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DocumentationFile>bin\Debug\netstandard2.0\SqlBulkTools.NetStandard.xml</DocumentationFile>
