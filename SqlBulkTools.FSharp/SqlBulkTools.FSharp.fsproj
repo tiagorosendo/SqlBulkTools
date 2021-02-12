@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>SqlBulkTools.FSharp</PackageId>
+    <Authors>tiagorosendo, zek99, gtaylor44, JordanMarr</Authors>
+    <Company />
+    <PackageProjectUrl>https://github.com/JordanMarr/SqlBulkTools.FSharp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JordanMarr/SqlBulkTools.FSharp</RepositoryUrl>
+    <PackageTags>sql bulk bulkinsert bulkupdate upsert fsharp</PackageTags>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Builders.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SqlBulkTools.NetStandard\SqlBulkTools.NetStandard.csproj" />
+  </ItemGroup>
+
+</Project>
