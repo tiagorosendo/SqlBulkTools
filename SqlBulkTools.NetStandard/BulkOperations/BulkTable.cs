@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools.BulkCopy
@@ -20,7 +18,7 @@ namespace SqlBulkTools.BulkCopy
         private readonly string _tableName;
         private Dictionary<string, string> CustomColumnMappings { get; set; }
         private BulkCopySettings _bulkCopySettings;
-        private readonly List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropInfo> _propertyInfoList;
 
         /// <summary>
         /// 
@@ -28,7 +26,7 @@ namespace SqlBulkTools.BulkCopy
         /// <param name="list"></param>
         /// <param name="tableName"></param>
         /// <param name="schema"></param>
-        public BulkTable(BulkOperations bulk, IEnumerable<T> list, string tableName, string schema)
+        public BulkTable(BulkOperations bulk, IEnumerable<T> list, Dictionary<string, Type> propTypes, string tableName, string schema)
         {
             this.bulk = bulk;
             _list = list;
@@ -39,7 +37,18 @@ namespace SqlBulkTools.BulkCopy
             Columns = new HashSet<string>();
             CustomColumnMappings = new Dictionary<string, string>();
             _bulkCopySettings = new BulkCopySettings();
-            _propertyInfoList = typeof(T).GetProperties().OrderBy(x => x.Name).ToList();
+            _propertyInfoList = PropInfoList.From<T>(propTypes);
+        }
+
+        /// <summary>
+        /// Add each column that you want to include in the query. Only include the columns that are relevant to the procedure for best performance. 
+        /// </summary>
+        /// <param name="columnName">Column name as represented in database</param>
+        /// <returns></returns>
+        public BulkAddColumn<T> AddColumn(string columnName)
+        {
+            Columns.Add(columnName);
+            return new BulkAddColumn<T>(bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
         }
 
         /// <summary>
@@ -49,8 +58,15 @@ namespace SqlBulkTools.BulkCopy
         /// <returns></returns>
         public BulkAddColumn<T> AddColumn(Expression<Func<T, object>> columnName)
         {
-            var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
-            Columns.Add(propertyName);
+            return AddColumn(BulkOperationsHelper.GetPropertyName(columnName));
+        }
+
+        public BulkAddColumn<T> AddColumns(params string[] columnNames)
+        {
+            foreach (var column in columnNames)
+            {
+                Columns.Add(column);
+            }
             return new BulkAddColumn<T>(bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
         }
 
@@ -73,17 +89,30 @@ namespace SqlBulkTools.BulkCopy
         /// If any of your model property names do not match 
         /// the SQL table column(s) as defined in given table, then use this overload to set up a custom mapping. </param>
         /// <returns></returns>
-        public BulkAddColumn<T> AddColumn(Expression<Func<T, object>> columnName, string destination)
+        public BulkAddColumn<T> AddColumn(string columnName, string destination)
         {
             if (destination == null)
                 throw new ArgumentNullException(nameof(destination));
 
-            var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
-            Columns.Add(propertyName);
+            Columns.Add(columnName);
 
-            CustomColumnMappings.Add(propertyName, destination);
+            CustomColumnMappings.Add(columnName, destination);
 
             return new BulkAddColumn<T>(bulk, _list, _tableName, Columns, CustomColumnMappings, _schema, _bulkCopySettings, _propertyInfoList);
+        }
+
+        /// <summary>
+        /// Add each column that you want to include in the query. Only include the columns that are relevant to the 
+        /// procedure for best performance. 
+        /// </summary>
+        /// <param name="columnName">Column name as represented in database</param>
+        /// <param name="destination">The actual name of column as represented in SQL table. By default SqlBulkTools will attempt to match the model property names to SQL column names (case insensitive). 
+        /// If any of your model property names do not match 
+        /// the SQL table column(s) as defined in given table, then use this overload to set up a custom mapping. </param>
+        /// <returns></returns>
+        public BulkAddColumn<T> AddColumn(Expression<Func<T, object>> columnName, string destination)
+        {
+            return AddColumn(BulkOperationsHelper.GetPropertyName(columnName), destination);
         }
 
         /// <summary>
@@ -120,6 +149,5 @@ namespace SqlBulkTools.BulkCopy
             _bulkCopySettings = settings;
             return this;
         }
-
     }
 }

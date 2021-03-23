@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq.Expressions;
-using System.Reflection;
 using SqlBulkTools.Enumeration;
 
 namespace SqlBulkTools
@@ -34,7 +33,7 @@ namespace SqlBulkTools
         protected readonly BulkCopySettings _bulkCopySettings;
         protected string _tableHint;
         protected readonly Dictionary<string, int> _ordinalDic;
-        protected readonly List<PropertyInfo> _propertyInfoList;
+        protected readonly List<PropInfo> _propertyInfoList;
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 
         /// <summary>
@@ -48,7 +47,7 @@ namespace SqlBulkTools
         /// <param name="bulkCopySettings"></param>
         /// <param name="propertyInfoList"></param>
         protected AbstractOperation(BulkOperations bulk, IEnumerable<T> list, string tableName, string schema, HashSet<string> columns,
-            Dictionary<string, string> customColumnMappings, BulkCopySettings bulkCopySettings, List<PropertyInfo> propertyInfoList)
+            Dictionary<string, string> customColumnMappings, BulkCopySettings bulkCopySettings, List<PropInfo> propertyInfoList)
         {
             this.bulk = bulk;
             _list = list;
@@ -74,18 +73,26 @@ namespace SqlBulkTools
         /// <param name="columnName"></param>
         /// <exception cref="SqlBulkToolsException"></exception>
 
-        protected void SetIdentity(Expression<Func<T, object>> columnName)
+        protected void SetIdentity(string columnName)
         {
-            var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
-
-            if (propertyName == null)
+            if (columnName == null)
                 throw new SqlBulkToolsException("SetIdentityColumn column name can't be null");
 
-            if (_identityColumn == null)           
-                _identityColumn = BulkOperationsHelper.GetActualColumn(_customColumnMappings, propertyName);
-                            
-            else           
-                throw new SqlBulkToolsException("Can't have more than one identity column");           
+            if (_identityColumn == null)
+                _identityColumn = BulkOperationsHelper.GetActualColumn(_customColumnMappings, columnName);
+            else
+                throw new SqlBulkToolsException("Can't have more than one identity column");
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <exception cref="SqlBulkToolsException"></exception>
+
+        protected void SetIdentity(Expression<Func<T, object>> columnName)
+        {
+            SetIdentity(BulkOperationsHelper.GetPropertyName(columnName));
         }
 
         /// <summary>
@@ -99,6 +106,17 @@ namespace SqlBulkTools
             TParameter parameterValue = (TParameter)parameterToCheck.Compile().Invoke();
 
             return parameterValue;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <param name="outputIdentity"></param>
+        protected void SetIdentity(string columnName, ColumnDirectionType outputIdentity)
+        {
+            _outputIdentity = outputIdentity;
+            SetIdentity(columnName);
         }
 
         /// <summary>

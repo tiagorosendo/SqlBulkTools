@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq.Expressions;
-using System.Reflection;
 using SqlBulkTools.Enumeration;
 
 // ReSharper disable once CheckNamespace
@@ -23,7 +22,7 @@ namespace SqlBulkTools
         private int _conditionSortOrder;
         private readonly List<SqlParameter> _sqlParams;
         private readonly Dictionary<string, string> _collationColumnDic;
-        private readonly List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropInfo> _propertyInfoList;
 
         /// <summary>
         /// 
@@ -36,7 +35,7 @@ namespace SqlBulkTools
         /// <param name="sqlParams"></param>
         /// <param name="propertyInfoList"></param>
         public QueryUpdateCondition(T singleEntity, string tableName, string schema, HashSet<string> columns, 
-            Dictionary<string, string> customColumnMappings, List<SqlParameter> sqlParams, List<PropertyInfo> propertyInfoList)
+            Dictionary<string, string> customColumnMappings, List<SqlParameter> sqlParams, List<PropInfo> propertyInfoList)
         {
             _singleEntity = singleEntity;
             _tableName = tableName;
@@ -87,6 +86,5 @@ namespace SqlBulkTools
             return new QueryUpdateReady<T>(_singleEntity, _tableName, _schema, _columns, _customColumnMappings,
                 _conditionSortOrder, _whereConditions, _sqlParams, _collationColumnDic, _propertyInfoList);
         }
-
     }
 }

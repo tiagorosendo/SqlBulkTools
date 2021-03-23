@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
+using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -11,6 +12,6 @@ namespace SqlBulkTools
 
         int Commit(SqlConnection connection, SqlTransaction transaction);
 
-        Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction);
+        Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction, CancellationToken cancellationToken);
     }
 }

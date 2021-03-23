@@ -228,7 +228,7 @@ namespace SqlBulkTools.UnitTests
         {
             // Arrange
             var expected = new HashSet<string> { "AverageEstimate_TotalCost", "AverageEstimate_CreationDate", "Competition", "Id", "MinEstimate_TotalCost", "MinEstimate_CreationDate", "SearchVolume" };
-            var propertyInfoList = typeof(ComplexTypeModel).GetProperties().OrderBy(x => x.Name).ToList();
+            var propertyInfoList = typeof(ComplexTypeModel).ToPropInfoList();
 
             // Act
             var result = BulkOperationsHelper.GetAllValueTypeAndStringColumns(propertyInfoList, typeof(ComplexTypeModel));
@@ -241,7 +241,7 @@ namespace SqlBulkTools.UnitTests
         public void BulkOperationsHelper_CreateDataTableForComplexType_IsStructuredCorrectly()
         {
             var columns = new HashSet<string> { "AverageEstimate_TotalCost", "AverageEstimate_CreationDate", "Competition", "MinEstimate_TotalCost", "MinEstimate_CreationDate", "SearchVolume" };
-            var propertyInfoList = typeof(ComplexTypeModel).GetProperties().OrderBy(x => x.Name).ToList();
+            var propertyInfoList = typeof(ComplexTypeModel).ToPropInfoList();
 
             var result = BulkOperationsHelper.CreateDataTable<ComplexTypeModel>(propertyInfoList, columns, null, new Dictionary<string, int>());
 
@@ -258,7 +258,7 @@ namespace SqlBulkTools.UnitTests
         {
             // Arrange
             var expected = new HashSet<string> { "BoolTest", "CreatedTime", "IntegerTest", "Price", "Title" };
-            var propertyInfoList = typeof(ModelWithMixedTypes).GetProperties().OrderBy(x => x.Name).ToList();
+            var propertyInfoList = typeof(ModelWithMixedTypes).ToPropInfoList();
 
             // Act
             var result = BulkOperationsHelper.GetAllValueTypeAndStringColumns(propertyInfoList, typeof(ModelWithMixedTypes));
@@ -656,7 +656,7 @@ namespace SqlBulkTools.UnitTests
             columns.Add("BestSeller");
 
             var sqlParams = new List<SqlParameter>();
-            var propertyInfoList = typeof(Book).GetProperties().OrderBy(x => x.Name).ToList();
+            var propertyInfoList = typeof(Book).ToPropInfoList();
 
 
             BulkOperationsHelper.AddSqlParamsForQuery(propertyInfoList, sqlParams, columns, book);

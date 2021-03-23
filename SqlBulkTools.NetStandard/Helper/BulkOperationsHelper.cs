@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using SqlBulkTools.Core;
 using SqlBulkTools.Enumeration;
@@ -517,7 +518,7 @@ namespace SqlBulkTools
             return memberExpr.Member.Name;
         }
 
-        internal static DataTable CreateDataTable<T>(IEnumerable<PropertyInfo> propertyInfoList, HashSet<string> columns,
+        internal static DataTable CreateDataTable<T>(List<PropInfo> propertyInfoList, HashSet<string> columns,
             Dictionary<string, string> columnMappings, Dictionary<string, int> ordinalDic,
             List<string> matchOnColumns = null, ColumnDirectionType? outputIdentity = null)
         {
@@ -541,7 +542,7 @@ namespace SqlBulkTools
 
                 if (complexTypeAttr != null)
                 {
-                    var complexPropertyInfoList = property.PropertyType.GetProperties();
+                    var complexPropertyInfoList = property.PropertyType.ToPropInfoList();
 
                     foreach (var complexProperty in complexPropertyInfoList)
                         AddPropertyToDataTable(complexProperty, columnMappings, dataTable, ordinalDic, columns, true,
@@ -583,7 +584,7 @@ namespace SqlBulkTools
             return dataTable;
         }
 
-        internal static void AddPropertyToDataTable(PropertyInfo property, Dictionary<string, string> columnMappings,
+        internal static void AddPropertyToDataTable(PropInfo property, Dictionary<string, string> columnMappings,
             DataTable dataTable, Dictionary<string, int> ordinalDic, HashSet<string> columns, bool isComplex,
             string basePropertyName)
         {
@@ -609,7 +610,7 @@ namespace SqlBulkTools
             }
         }
 
-        public static DataTable ConvertListToDataTable<T>(List<PropertyInfo> propertyInfoList, DataTable dataTable,
+        public static DataTable ConvertListToDataTable<T>(List<PropInfo> propertyInfoList, DataTable dataTable,
             IEnumerable<T> list, HashSet<string> columns, Dictionary<string, int> ordinalDic,
             Dictionary<int, T> outputIdentityDic = null)
         {
@@ -629,12 +630,11 @@ namespace SqlBulkTools
                         var res = propertyCustomAttributeDictionary.TryGetValue(property, out var attr);
                         if (res && attr != null)
                         {
-                            var complexPropertyList = property.PropertyType.GetProperties();
+                            var complexPropertyList = property.PropertyType.ToPropInfoList();
 
                             foreach (var complexProperty in complexPropertyList)
                                 AddToDataTable(complexProperty, column, item, ordinalDic, values, property.Name, true);
                         }
-
                         else
                         {
                             AddToDataTable(property, column, item, ordinalDic, values, null, false);
@@ -658,7 +658,7 @@ namespace SqlBulkTools
             return dataTable;
         }
 
-        internal static void AddToDataTable<T>(PropertyInfo property, string column, T item,
+        internal static void AddToDataTable<T>(PropInfo property, string column, T item,
             Dictionary<string, int> ordinalDic,
             object[] values, string basePropertyName, bool isComplex)
         {
@@ -673,17 +673,17 @@ namespace SqlBulkTools
                 {
                     var complexType = item.GetType().GetProperty(basePropertyName);
                     var value = complexType.GetValue(item, null);
-                    values[ordinal] = property.GetValue(value, null);
+                    values[ordinal] = property.GetValue(value);
                 }
                 else
                 {
-                    values[ordinal] = property.GetValue(item, null);
+                    values[ordinal] = property.GetValue(item);
                 }
             }
         }
 
         // Loops through object properties, checks if column has been added, adds as sql parameter. 
-        public static void AddSqlParamsForQuery<T>(List<PropertyInfo> propertyInfoList,
+        public static void AddSqlParamsForQuery<T>(List<PropInfo> propertyInfoList,
             List<SqlParameter> sqlParameters, HashSet<string> columns, T item,
             string identityColumn = null, ColumnDirectionType direction = ColumnDirectionType.Input,
             Dictionary<string, string> customColumns = null)
@@ -692,8 +692,8 @@ namespace SqlBulkTools
             foreach (var property in propertyInfoList)
                 if (property.PropertyType.GetCustomAttribute(typeof(ComplexTypeAttribute)) != null)
                 {
-                    var complexPropertyList = property.PropertyType.GetProperties();
-                    foreach (var complexProperty in complexPropertyList)
+                    var complexPropertyList = property.PropertyType.ToPropInfoList();
+                        foreach (var complexProperty in complexPropertyList)
                     {
                         var propertyName = $"{property.Name}_{complexProperty.Name}";
 
@@ -719,7 +719,7 @@ namespace SqlBulkTools
                 {
                     var param = GetSqlParam<T>(property, customColumns, column);
 
-                    var propValue = property.GetValue(item, null);
+                    var propValue = property.GetValue(item);
 
                     param.Value = propValue ?? DBNull.Value;
 
@@ -730,7 +730,7 @@ namespace SqlBulkTools
                 }
         }
 
-        private static SqlParameter GetSqlParam<T>(PropertyInfo property, Dictionary<string, string> customColumns,
+        private static SqlParameter GetSqlParam<T>(PropInfo property, Dictionary<string, string> customColumns,
             string column)
         {
             var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(property.PropertyType);
@@ -883,7 +883,7 @@ namespace SqlBulkTools
             }
         }
 
-        internal static HashSet<string> GetAllValueTypeAndStringColumns(List<PropertyInfo> propertyInfoList, Type type)
+        internal static HashSet<string> GetAllValueTypeAndStringColumns(List<PropInfo> propertyInfoList, Type type)
         {
             var columns = new HashSet<string>();
 
@@ -1009,14 +1009,26 @@ namespace SqlBulkTools
             }
         }
 
-        internal static void LoadFromTmpOutputTable<T>(SqlCommand command, string identityColumn,
-            Dictionary<int, T> outputIdentityDic,
-            OperationType operationType, IEnumerable<T> list)
+        internal static async Task InsertToTmpTableAsync(SqlConnection conn, DataTable dt, BulkCopySettings bulkCopySettings, SqlTransaction transaction, CancellationToken cancellationToken)
         {
-            if (!typeof(T).GetProperty(identityColumn).CanWrite)
-                throw new SqlBulkToolsException(GetPrivateSetterExceptionMessage(identityColumn));
+            using (var bulkcopy = new SqlBulkCopy(conn, bulkCopySettings.SqlBulkCopyOptions, transaction))
+            {
+                bulkcopy.DestinationTableName = Constants.TempTableName;
 
-            var identityProperty = typeof(T).GetProperty(identityColumn);
+                SetSqlBulkCopySettings(bulkcopy, bulkCopySettings);
+
+                foreach (var column in dt.Columns) bulkcopy.ColumnMappings.Add(column.ToString(), column.ToString());
+
+                await bulkcopy.WriteToServerAsync(dt, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        internal static void LoadFromTmpOutputTable<T>(SqlCommand command, List<PropInfo> propertyInfoList, string identityColumn,
+            Dictionary<int, T> outputIdentityDic, OperationType operationType, IEnumerable<T> list)
+        {
+            var identityProperty = propertyInfoList.Single(p => p.Name == identityColumn);
+            if (!identityProperty.CanWrite)
+                throw new SqlBulkToolsException(GetPrivateSetterExceptionMessage(identityColumn));
 
             switch (operationType)
             {
@@ -1032,7 +1044,7 @@ namespace SqlBulkTools
                         while (reader.Read())
                         {
                             if (outputIdentityDic.TryGetValue(reader.GetInt32(0), out var item))
-                                identityProperty.SetValue(item, reader.GetInt32(1), null);
+                                identityProperty.SetValue(item, reader.GetInt32(1));
                         }
                     }
 
@@ -1050,7 +1062,7 @@ namespace SqlBulkTools
 
                         while (reader.Read())
                         {
-                            identityProperty.SetValue(items[counter], reader.GetInt32(0), null);
+                            identityProperty.SetValue(items[counter], reader.GetInt32(0));
                             counter++;
                         }
                     }
@@ -1061,13 +1073,12 @@ namespace SqlBulkTools
             }
         }
 
-        internal static async Task LoadFromTmpOutputTableAsync<T>(SqlCommand command, string identityColumn,
-            Dictionary<int, T> outputIdentityDic, OperationType operationType, IEnumerable<T> list)
+        internal static async Task LoadFromTmpOutputTableAsync<T>(SqlCommand command, List<PropInfo> propertyInfoList, string identityColumn,
+            Dictionary<int, T> outputIdentityDic, OperationType operationType, IEnumerable<T> list, CancellationToken cancellationToken)
         {
-            if (!typeof(T).GetProperty(identityColumn).CanWrite)
+            var identityProperty = propertyInfoList.Single(p => p.Name == identityColumn);
+            if (!identityProperty.CanWrite)
                 throw new SqlBulkToolsException(GetPrivateSetterExceptionMessage(identityColumn));
-
-            var identityProperty = typeof(T).GetProperty(identityColumn);
 
             switch (operationType)
             {
@@ -1078,36 +1089,36 @@ namespace SqlBulkTools
                         $"SELECT {Constants.InternalId}, {identityColumn} FROM " +
                         $"{Constants.TempOutputTableName} WHERE {Constants.InternalId} IS NOT NULL;";
 
-                    using (var reader = await command.ExecuteReaderAsync())
+                    using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                     {
                         while (reader.Read())
                         {
                             if (outputIdentityDic.TryGetValue(reader.GetInt32(0), out var item))
-                                identityProperty.SetValue(item, reader.GetInt32(1), null);
+                                identityProperty.SetValue(item, reader.GetInt32(1));
                         }
                     }
 
                     command.CommandText = GetDropTmpTableCmd();
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                     break;
                 case OperationType.Insert:
                     command.CommandText =
                         $"SELECT {identityColumn} FROM {Constants.TempOutputTableName} ORDER BY {identityColumn};";
 
-                    using (var reader = await command.ExecuteReaderAsync())
+                    using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                     {
                         var items = list.ToList();
                         var counter = 0;
 
                         while (reader.Read())
                         {
-                            identityProperty.SetValue(items[counter], reader.GetInt32(0), null);
+                            identityProperty.SetValue(items[counter], reader.GetInt32(0));
                             counter++;
                         }
                     }
 
                     command.CommandText = GetDropTmpTableCmd();
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                     break;
             }
         }

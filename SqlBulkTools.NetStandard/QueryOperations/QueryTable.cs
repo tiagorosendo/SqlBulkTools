@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace SqlBulkTools.QueryOperations
 {
@@ -19,7 +17,7 @@ namespace SqlBulkTools.QueryOperations
         private readonly string _tableName;
         private Dictionary<string, string> CustomColumnMappings { get; set; }
         private readonly List<SqlParameter> _sqlParams;
-        private readonly List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropInfo> _propertyInfoList;
 
         /// <summary>
         /// 
@@ -28,7 +26,7 @@ namespace SqlBulkTools.QueryOperations
         /// <param name="tableName"></param>
         /// <param name="schema"></param>
         /// <param name="sqlParams"></param>
-        public QueryTable(T singleEntity, string tableName, string schema, List<SqlParameter> sqlParams)
+        public QueryTable(T singleEntity, Dictionary<string, Type> propTypes, string tableName, string schema, List<SqlParameter> sqlParams)
         {
             _singleEntity = singleEntity;
             _schema = schema;
@@ -38,7 +36,7 @@ namespace SqlBulkTools.QueryOperations
             Columns = new HashSet<string>();
             CustomColumnMappings = new Dictionary<string, string>();
             _sqlParams = sqlParams;
-            _propertyInfoList = typeof(T).GetProperties().OrderBy(x => x.Name).ToList();
+            _propertyInfoList = PropInfoList.From<T>(propTypes);
         }
 
         /// <summary>

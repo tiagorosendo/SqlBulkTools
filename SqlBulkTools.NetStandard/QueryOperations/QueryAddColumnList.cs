@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace SqlBulkTools.QueryOperations
 {
@@ -18,7 +17,7 @@ namespace SqlBulkTools.QueryOperations
         private HashSet<string> _columns;
         private readonly string _schema;
         private List<SqlParameter> _sqlParams;
-        private readonly List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropInfo> _propertyInfoList;
 
         /// <summary>
         /// 
@@ -30,7 +29,7 @@ namespace SqlBulkTools.QueryOperations
         /// <param name="sqlParams"></param>
         /// <param name="propertyInfoList"></param>
         public QueryAddColumnList(T singleEntity, string tableName, HashSet<string> columns, string schema,
-            List<SqlParameter> sqlParams, List<PropertyInfo> propertyInfoList)
+            List<SqlParameter> sqlParams, List<PropInfo> propertyInfoList)
         {
             _singleEntity = singleEntity;
             _tableName = tableName;

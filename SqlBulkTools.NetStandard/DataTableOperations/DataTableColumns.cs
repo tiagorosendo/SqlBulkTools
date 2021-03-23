@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -16,18 +14,18 @@ namespace SqlBulkTools
         private readonly IEnumerable<T> _list;
         private readonly DataTableOperations _ext;
         private readonly Dictionary<string, int> _ordinalDic;
-        private List<PropertyInfo> _propertyInfoList;
+        private List<PropInfo> _propertyInfoList;
 
         /// <summary>
         /// 
         /// </summary>
-        public DataTableColumns(IEnumerable<T> list, DataTableOperations ext)
+        public DataTableColumns(IEnumerable<T> list, Dictionary<string, Type> propTypes, DataTableOperations ext)
         {
             _list = list;
             _ext = ext;
             Columns = new HashSet<string>();
             _ordinalDic = new Dictionary<string, int>();
-            _propertyInfoList = typeof(T).GetProperties().OrderBy(x => x.Name).ToList();
+            _propertyInfoList = PropInfoList.From<T>(propTypes);
         }
 
         /// <summary>

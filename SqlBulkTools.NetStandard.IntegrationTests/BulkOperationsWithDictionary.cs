@@ -10,13 +10,32 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Transactions;
 using Xunit;
 
 namespace SqlBulkTools.IntegrationTests
 {
+    internal static class HelperExtensions
+    {
+        public static List<Dictionary<string, object>> ToDictionaryList<T>(this IEnumerable<T> list)
+        {
+            var properties = typeof(T).GetProperties();
+            return list.Select(entity => properties.ToDictionary(entity)).ToList();
+        }
+
+        public static Dictionary<string, object> ToDictionary(this PropertyInfo[] propertyInfos, object entity) => 
+            propertyInfos.ToDictionary(p => p.Name, p => p.GetValue(entity));
+
+        public static Dictionary<string, object> ToDictionary<T>(this T entity) => 
+            typeof(T).GetProperties().ToDictionary(entity);
+
+        public static Dictionary<string, Type> ToPropertyTypes(this Type type) =>
+            type.GetProperties().ToDictionary(p => p.Name, p => p.PropertyType);
+    }
+
     [Collection("IntegrationTests")]
-    public class BulkOperationsIt
+    public class BulkOperationsWithDictionary
     {
         private const int _repeatTimes = 1;
         private readonly DataAccess _dataAccess = new DataAccess();
@@ -48,14 +67,15 @@ namespace SqlBulkTools.IntegrationTests
                         .AllRecords()
                         .Commit(conn);
 
-                    bulk.Setup<CustomIdentityColumnNameTest>()
-                        .ForCollection(customIdentityColumnList)
+                    bulk.Setup()
+                        .ForCollection(customIdentityColumnList.ToDictionaryList())
+                        .WithPropertyTypes(typeof(CustomIdentityColumnNameTest).ToPropertyTypes())
                         .WithTable("CustomIdentityColumnNameTest")
-                        .AddColumn(x => x.Id, "ID_COMPANY")
-                        .AddColumn(x => x.ColumnA)
+                        .AddColumn("Id", "ID_COMPANY")
+                        .AddColumn("ColumnA")
                         .BulkInsertOrUpdate()
-                        .SetIdentityColumn(x => x.Id)
-                        .MatchTargetOn(x => x.ColumnA)
+                        .SetIdentityColumn("Id")
+                        .MatchTargetOn("ColumnA")
                         .Commit(conn);
                 }
 
@@ -63,159 +83,6 @@ namespace SqlBulkTools.IntegrationTests
             }
 
             Assert.True(_dataAccess.GetCustomIdentityColumnNameTestList().Count == 30);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkInsertForComplexType_AddAllColumns()
-        {
-            var bulk = new BulkOperations();
-            var complexTypeModelList = new List<ComplexTypeModel>();
-
-            for (var i = 0; i < 30; i++)
-            {
-                complexTypeModelList.Add(new ComplexTypeModel
-                {
-                    AverageEstimate = new EstimatedStats
-                    {
-                        TotalCost = 23.20
-                    },
-                    MinEstimate = new EstimatedStats
-                    {
-                        TotalCost = 10.20
-                    },
-                    Competition = 30,
-                    SearchVolume = 234.34
-                });
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<ComplexTypeModel>()
-                        .ForDeleteQuery()
-                        .WithTable("ComplexTypeTest")
-                        .Delete()
-                        .AllRecords()
-                        .Commit(conn);
-
-                    bulk.Setup<ComplexTypeModel>()
-                        .ForCollection(complexTypeModelList)
-                        .WithTable("ComplexTypeTest")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .SetIdentityColumn(x => x.Id)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            Assert.True(_dataAccess.GetComplexTypeModelCount() > 0);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkInsertOrUpdateForComplexType_AddAllColumns()
-        {
-            var bulk = new BulkOperations();
-            var complexTypeModelList = new List<ComplexTypeModel>();
-
-            for (var i = 0; i < 30; i++)
-            {
-                complexTypeModelList.Add(new ComplexTypeModel
-                {
-                    AverageEstimate = new EstimatedStats
-                    {
-                        TotalCost = 23.20
-                    },
-                    MinEstimate = new EstimatedStats
-                    {
-                        TotalCost = 10.20
-                    },
-                    Competition = 30,
-                    SearchVolume = 234.34
-
-                });
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<ComplexTypeModel>()
-                        .ForDeleteQuery()
-                        .WithTable("ComplexTypeTest")
-                        .Delete()
-                        .AllRecords();
-
-                    bulk.Setup<ComplexTypeModel>()
-                        .ForCollection(complexTypeModelList)
-                        .WithTable("ComplexTypeTest")
-                        .AddAllColumns()
-                        .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.Id)
-                        .SetIdentityColumn(x => x.Id)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            Assert.True(_dataAccess.GetComplexTypeModelCount() > 0);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkInsertForComplexType_AddColumnsManually()
-        {
-            var bulk = new BulkOperations();
-            var complexTypeModelList = new List<ComplexTypeModel>();
-
-            for (var i = 0; i < 30; i++)
-            {
-                complexTypeModelList.Add(new ComplexTypeModel
-                {
-                    AverageEstimate = new EstimatedStats
-                    {
-                        TotalCost = 23.20
-                    },
-                    MinEstimate = new EstimatedStats
-                    {
-                        TotalCost = 10.20
-                    },
-                    Competition = 30,
-                    SearchVolume = 234.34
-
-                });
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<ComplexTypeModel>()
-                        .ForDeleteQuery()
-                        .WithTable("ComplexTypeTest")
-                        .Delete()
-                        .AllRecords();
-
-                    bulk.Setup<ComplexTypeModel>()
-                        .ForCollection(complexTypeModelList)
-                        .WithTable("ComplexTypeTest")
-                        .AddColumn(x => x.AverageEstimate.CreationDate)
-                        .AddColumn(x => x.AverageEstimate.TotalCost)
-                        .AddColumn(x => x.Competition)
-                        .AddColumn(x => x.MinEstimate.CreationDate, "MinEstimate_CreationDate") // Testing custom column mapping
-                        .AddColumn(x => x.MinEstimate.TotalCost)
-                        .AddColumn(x => x.SearchVolume)                                                
-                        .BulkInsert()
-                        .SetIdentityColumn(x => x.Id)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            Assert.True(_dataAccess.GetComplexTypeModelCount() > 0);
         }
 
         [Fact]
@@ -392,9 +259,7 @@ namespace SqlBulkTools.IntegrationTests
             }
             var avg = results.Average(l => l);
             Trace.WriteLine("Average result (" + _repeatTimes + " iterations): " + avg.ToString("#.##") + " ms\n\n");
-
         }
-
 
         [Fact]
         public void SqlBulkTools_BulkUpdateOnIdentityColumn()
@@ -408,38 +273,39 @@ namespace SqlBulkTools.IntegrationTests
             var bulk = new BulkOperations();
 
             BulkDelete(_dataAccess.GetBookList());
-            _bookCollection = _randomizer.GetRandomCollection(rows);
+
+            var books = _randomizer.GetRandomCollection(rows).ToDictionaryList();
 
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                    .ForCollection(_bookCollection)
+                    bulk.Setup()
+                    .ForCollection(books)
+                    .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                     .WithTable("Books")
                     .AddAllColumns()
                     .BulkInsert()
-                    .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
+                    .SetIdentityColumn("Id", ColumnDirectionType.InputOutput)
                     .Commit(conn);
-
 
                     // Update half the rows
                     for (var j = 0; j < rows / 2; j++)
                     {
                         var newBook = fixture.Build<Book>().Without(s => s.Id).Without(s => s.ISBN).Create();
-                        var prevId = _bookCollection[j].Id;
-                        _bookCollection[j] = newBook;
-                        _bookCollection[j].Id = prevId;
-
+                        var prevId = books[j]["Id"];
+                        books[j] = newBook.ToDictionary();
+                        books[j]["Id"] = prevId;
                     }
 
-                    bulk.Setup<Book>()
-                        .ForCollection(_bookCollection)
+                    bulk.Setup()
+                        .ForCollection(books)
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkUpdate()
-                        .MatchTargetOn(x => x.Id)
-                        .SetIdentityColumn(x => x.Id)
+                        .MatchTargetOn("Id")
+                        .SetIdentityColumn("Id")
                         .Commit(conn);
                 }
 
@@ -447,9 +313,9 @@ namespace SqlBulkTools.IntegrationTests
             }
 
             var testUpdate = _dataAccess.GetBookList().FirstOrDefault();
-            Assert.Equal(_bookCollection[0].Price, testUpdate?.Price);
-            Assert.Equal(_bookCollection[0].Title, testUpdate?.Title);
-            Assert.Equal(_bookCollection.Count, _dataAccess.GetBookCount());
+            Assert.Equal(books[0]["Price"], testUpdate?.Price);
+            Assert.Equal(books[0]["Title"], testUpdate?.Title);
+            Assert.Equal(books.Count, _dataAccess.GetBookCount());
         }
 
         [Fact]
@@ -488,12 +354,13 @@ namespace SqlBulkTools.IntegrationTests
             using var conn = new SqlConnection(_dataAccess.ConnectionString);
 
             Assert.Throws<IdentityException>(() => 
-                bulk.Setup<Book>()
-                    .ForCollection(_bookCollection)
+                bulk.Setup()
+                    .ForCollection(_bookCollection.ToDictionaryList())
+                    .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                     .WithTable("Books")
                     .AddAllColumns()
                     .BulkUpdate()
-                    .MatchTargetOn(x => x.Id)
+                    .MatchTargetOn("Id")
                     .Commit(conn));
         }
 
@@ -515,13 +382,14 @@ namespace SqlBulkTools.IntegrationTests
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(_bookCollection)
+                    bulk.Setup()
+                        .ForCollection(_bookCollection.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkUpdate()
-                        .SetIdentityColumn(x => x.Id)
-                        .MatchTargetOn(x => x.Id)
+                        .SetIdentityColumn("Id")
+                        .MatchTargetOn("Id")
                         .Commit(conn);
                 }
 
@@ -548,17 +416,19 @@ namespace SqlBulkTools.IntegrationTests
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<SchemaTest2>()
-                        .ForCollection(conflictingSchemaCol)
+                    bulk.Setup()
+                        .ForCollection(conflictingSchemaCol.ToDictionaryList())
+                        .WithPropertyTypes(typeof(SchemaTest2).ToPropertyTypes())
                         .WithTable("SchemaTest")
                         .WithSchema("AnotherSchema")
-                        .AddColumn(x => x.ColumnA)
+                        .AddColumn("ColumnA")
                         .BulkDelete()
-                        .MatchTargetOn(x => x.ColumnA)
+                        .MatchTargetOn("ColumnA")
                         .Commit(conn); // Remove existing rows
 
-                    bulk.Setup<SchemaTest2>()
-                        .ForCollection(conflictingSchemaCol)
+                    bulk.Setup()
+                        .ForCollection(conflictingSchemaCol.ToDictionaryList())
+                        .WithPropertyTypes(typeof(SchemaTest2).ToPropertyTypes())
                         .WithTable("SchemaTest")
                         .WithSchema("AnotherSchema")
                         .AddAllColumns()
@@ -590,16 +460,18 @@ namespace SqlBulkTools.IntegrationTests
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<SchemaTest2>()
-                        .ForCollection(conflictingSchemaCol)
+                    bulk.Setup()
+                        .ForCollection(conflictingSchemaCol.ToDictionaryList())
+                        .WithPropertyTypes(typeof(SchemaTest2).ToPropertyTypes())
                         .WithTable("AnotherSchema.SchemaTest")
-                        .AddColumn(x => x.ColumnA)
+                        .AddColumn("ColumnA")
                         .BulkDelete()
-                        .MatchTargetOn(x => x.ColumnA)
+                        .MatchTargetOn("ColumnA")
                         .Commit(conn); // Remove existing rows
 
-                    bulk.Setup<SchemaTest2>()
-                        .ForCollection(conflictingSchemaCol)
+                    bulk.Setup()
+                        .ForCollection(conflictingSchemaCol.ToDictionaryList())
+                        .WithPropertyTypes(typeof(SchemaTest2).ToPropertyTypes())
                         .WithTable("[AnotherSchema].[SchemaTest]")
                         .AddAllColumns()
                         .BulkInsert()
@@ -611,7 +483,6 @@ namespace SqlBulkTools.IntegrationTests
 
             // Assert
             Assert.True(_dataAccess.GetSchemaTest2List().Any());
-
         }
 
         [Fact]
@@ -625,12 +496,13 @@ namespace SqlBulkTools.IntegrationTests
             using (var conn = new SqlConnection(_dataAccess.ConnectionString))
             {
                 Assert.Throws<SqlBulkToolsException>(() =>
-                    bulk.Setup<SchemaTest2>()
-                        .ForCollection(new List<SchemaTest2>())
+                    bulk.Setup()
+                        .ForCollection(new List<SchemaTest2>().ToDictionaryList())
+                        .WithPropertyTypes(typeof(SchemaTest2).ToPropertyTypes())
                         .WithTable("SchemaTest.AnotherSchema.TooManyPeriods")
-                        .AddColumn(x => x.ColumnA)
+                        .AddColumn("ColumnA")
                         .BulkDelete()
-                        .MatchTargetOn(x => x.ColumnA)
+                        .MatchTargetOn("ColumnA")
                         .Commit(conn));
             }
 
@@ -648,13 +520,14 @@ namespace SqlBulkTools.IntegrationTests
             using (var conn = new SqlConnection(_dataAccess.ConnectionString))
             {
                 Assert.Throws<SqlBulkToolsException>(() =>
-                    bulk.Setup<SchemaTest2>()
-                        .ForCollection(new List<SchemaTest2>())
+                    bulk.Setup()
+                        .ForCollection(new List<SchemaTest2>().ToDictionaryList())
+                        .WithPropertyTypes(typeof(SchemaTest2).ToPropertyTypes())
                         .WithTable("SchemaTest.AnotherSchema")
                         .WithSchema("YetAnotherSchema")
-                        .AddColumn(x => x.ColumnA)
+                        .AddColumn("ColumnA")
                         .BulkDelete()
-                        .MatchTargetOn(x => x.ColumnA)
+                        .MatchTargetOn("ColumnA")
                         .Commit(conn));
             }
 
@@ -680,13 +553,13 @@ namespace SqlBulkTools.IntegrationTests
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
 
-                    bulk.Setup<SchemaTest1>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(SchemaTest1).ToPropertyTypes())
                         .WithTable("SchemaTest") // Don't specify schema. Default schema dbo is used. 
                         .AddAllColumns()
                         .BulkInsert()
                         .Commit(conn);
-
                 }
                 trans.Complete();
             }           
@@ -694,12 +567,13 @@ namespace SqlBulkTools.IntegrationTests
             using (var secondConn = new SqlConnection(_dataAccess.ConnectionString))
             {
                 var allItems = _dataAccess.GetSchemaTest1List();
-                bulk.Setup<SchemaTest1>()
-                    .ForCollection(allItems)
+                bulk.Setup()
+                    .ForCollection(allItems.ToDictionaryList())
+                    .WithPropertyTypes(typeof(SchemaTest1).ToPropertyTypes())
                     .WithTable("SchemaTest")
-                    .AddColumn(x => x.Id)
+                    .AddColumn("Id")
                     .BulkDelete()
-                    .MatchTargetOn(x => x.Id)
+                    .MatchTargetOn("Id")
                     .Commit(secondConn);
             }
 
@@ -728,12 +602,13 @@ namespace SqlBulkTools.IntegrationTests
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
                     // Act           
-                    bulk.Setup<Book>()
-                        .ForCollection(_bookCollection)
+                    bulk.Setup()
+                        .ForCollection(_bookCollection.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
-                        .AddColumn(x => x.Price)
+                        .AddColumn("Price")
                         .BulkUpdate()
-                        .MatchTargetOn(x => x.ISBN)
+                        .MatchTargetOn("ISBN")
                         .Commit(conn);
                 }
 
@@ -771,13 +646,14 @@ namespace SqlBulkTools.IntegrationTests
                         .AllRecords()
                         .Commit(conn);
 
-                    bulk.Setup<CustomColumnMappingTest>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(CustomColumnMappingTest).ToPropertyTypes())
                         .WithTable("CustomColumnMappingTests")
                         .AddAllColumns()
-                        .CustomColumnMapping(x => x.ColumnXIsDifferent, "ColumnX")
-                        .CustomColumnMapping(x => x.ColumnYIsDifferentInDatabase, "ColumnY")
-                        .CustomColumnMapping(x => x.NaturalIdTest, "NaturalId")
+                        .CustomColumnMapping("ColumnXIsDifferent", "ColumnX")
+                        .CustomColumnMapping("ColumnYIsDifferentInDatabase", "ColumnY")
+                        .CustomColumnMapping("NaturalIdTest", "NaturalId")
                         .BulkInsert()
                         .Commit(conn);
                 }
@@ -813,16 +689,17 @@ namespace SqlBulkTools.IntegrationTests
                         .SetBatchQuantity(5)
                         .Commit(conn);
 
-                    bulk.Setup<CustomColumnMappingTest>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(CustomColumnMappingTest).ToPropertyTypes())
                         .WithTable("CustomColumnMappingTests")
                         .AddAllColumns()
-                        .CustomColumnMapping(x => x.ColumnXIsDifferent, "ColumnX")
-                        .CustomColumnMapping(x => x.ColumnYIsDifferentInDatabase, "ColumnY")
-                        .CustomColumnMapping(x => x.NaturalIdTest, "NaturalId")
+                        .CustomColumnMapping("ColumnXIsDifferent", "ColumnX")
+                        .CustomColumnMapping("ColumnYIsDifferentInDatabase", "ColumnY")
+                        .CustomColumnMapping("NaturalIdTest", "NaturalId")
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.NaturalIdTest)
-                        .UpdateWhen(x => x.ColumnXIsDifferent != "me")
+                        .MatchTargetOn("NaturalIdTest")
+                        //.UpdateWhen(x => x.ColumnXIsDifferent != "me")
                         .Commit(conn);
                 }
 
@@ -856,15 +733,16 @@ namespace SqlBulkTools.IntegrationTests
                         .AllRecords()
                         .Commit(conn);
 
-                    bulk.Setup<CustomColumnMappingTest>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(CustomColumnMappingTest).ToPropertyTypes())
                         .WithTable("CustomColumnMappingTests")
-                        .AddColumn(x => x.ColumnXIsDifferent, "ColumnX")
-                        .AddColumn(x => x.ColumnYIsDifferentInDatabase, "ColumnY")
-                        .AddColumn(x => x.NaturalIdTest, "NaturalId")
+                        .AddColumn("ColumnXIsDifferent", "ColumnX")
+                        .AddColumn("ColumnYIsDifferentInDatabase", "ColumnY")
+                        .AddColumn("NaturalIdTest", "NaturalId")
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.NaturalIdTest)
-                        .UpdateWhen(x => x.ColumnXIsDifferent != "me")
+                        .MatchTargetOn("NaturalIdTest")
+                        //.UpdateWhen(x => x.ColumnXIsDifferent != "me")
                         .Commit(conn);
                 }
 
@@ -880,12 +758,14 @@ namespace SqlBulkTools.IntegrationTests
         {
             var bulk = new BulkOperations();
 
-            var col = new List<CustomColumnMappingTest>();
+            var colObjects = new List<CustomColumnMappingTest>();
 
             for (var i = 0; i < 30; i++)
             {
-                col.Add(new CustomColumnMappingTest() { NaturalIdTest = i, ColumnXIsDifferent = "ColumnX " + i, ColumnYIsDifferentInDatabase = i });
+                colObjects.Add(new CustomColumnMappingTest() { NaturalIdTest = i, ColumnXIsDifferent = "ColumnX " + i, ColumnYIsDifferentInDatabase = i });
             }
+
+            var col = colObjects.ToDictionaryList();
 
             using (var trans = new TransactionScope())
             {
@@ -898,28 +778,29 @@ namespace SqlBulkTools.IntegrationTests
                         .AllRecords()
                         .Commit(conn);
 
-                    bulk.Setup<CustomColumnMappingTest>()
+                    bulk.Setup()
                         .ForCollection(col)
+                        .WithPropertyTypes(typeof(CustomColumnMappingTest).ToPropertyTypes())
                         .WithTable("CustomColumnMappingTests")
-                        .AddColumn(x => x.ColumnXIsDifferent, "ColumnX")
-                        .AddColumn(x => x.ColumnYIsDifferentInDatabase, "ColumnY")
-                        .AddColumn(x => x.NaturalIdTest, "NaturalId")
+                        .AddColumn("ColumnXIsDifferent", "ColumnX")
+                        .AddColumn("ColumnYIsDifferentInDatabase", "ColumnY")
+                        .AddColumn("NaturalIdTest", "NaturalId")
                         .BulkInsert()
                         .Commit(conn);
 
                     foreach (var item in col)
                     {
-                        item.ColumnXIsDifferent = "Updated";
+                        item["ColumnXIsDifferent"] = "Updated";
                     }
 
-                    bulk.Setup<CustomColumnMappingTest>()
+                    bulk.Setup()
                         .ForCollection(col)
+                        .WithPropertyTypes(typeof(CustomColumnMappingTest).ToPropertyTypes())
                         .WithTable("CustomColumnMappingTests")
-                        .AddColumn(x => x.ColumnXIsDifferent, "ColumnX")
-                        .AddColumn(x => x.NaturalIdTest, "NaturalId")
+                        .AddColumn("ColumnXIsDifferent", "ColumnX")
+                        .AddColumn("NaturalIdTest", "NaturalId")
                         .BulkUpdate()
-                        .MatchTargetOn(x => x.NaturalIdTest)
-                        .UpdateWhen(x => x.ColumnXIsDifferent != "me")
+                        .MatchTargetOn("NaturalIdTest")
                         .Commit(conn);
                 }
 
@@ -953,13 +834,14 @@ namespace SqlBulkTools.IntegrationTests
                         .AllRecords()
                         .Commit(conn);
 
-                    bulk.Setup<CustomColumnMappingTest>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(CustomColumnMappingTest).ToPropertyTypes())
                         .WithTable("CustomColumnMappingTests")
                         .AddAllColumns()
-                        .CustomColumnMapping(x => x.ColumnXIsDifferent, "ColumnX")
-                        .CustomColumnMapping(x => x.ColumnYIsDifferentInDatabase, "ColumnY")
-                        .CustomColumnMapping(x => x.NaturalIdTest, "NaturalId")
+                        .CustomColumnMapping("ColumnXIsDifferent", "ColumnX")
+                        .CustomColumnMapping("ColumnYIsDifferentInDatabase", "ColumnY")
+                        .CustomColumnMapping("NaturalIdTest", "NaturalId")
                         .BulkInsert()
                         .Commit(conn);
 
@@ -968,16 +850,16 @@ namespace SqlBulkTools.IntegrationTests
                         item.ColumnXIsDifferent = "Updated";
                     }
 
-                    bulk.Setup<CustomColumnMappingTest>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(CustomColumnMappingTest).ToPropertyTypes())
                         .WithTable("CustomColumnMappingTests")
                         .AddAllColumns()
-                        .CustomColumnMapping(x => x.ColumnXIsDifferent, "ColumnX")
-                        .CustomColumnMapping(x => x.ColumnYIsDifferentInDatabase, "ColumnY")
-                        .CustomColumnMapping(x => x.NaturalIdTest, "NaturalId")
+                        .CustomColumnMapping("ColumnXIsDifferent", "ColumnX")
+                        .CustomColumnMapping("ColumnYIsDifferentInDatabase", "ColumnY")
+                        .CustomColumnMapping("NaturalIdTest", "NaturalId")
                         .BulkUpdate()
-                        .MatchTargetOn(x => x.NaturalIdTest)
-                        .UpdateWhen(x => x.ColumnXIsDifferent != "me")
+                        .MatchTargetOn("NaturalIdTest")
                         .Commit(conn);
                 }
 
@@ -991,7 +873,6 @@ namespace SqlBulkTools.IntegrationTests
         [Fact]
         public void SqlBulkTools_WhenUsingReservedSqlKeywords()
         {
-            //_db.ReservedColumnNameTest.RemoveRange(_db.ReservedColumnNameTest.ToList());
             var bulk = new BulkOperations();
 
             var list = new List<ReservedColumnNameTest>();
@@ -1012,13 +893,14 @@ namespace SqlBulkTools.IntegrationTests
                         .AllRecords()
                         .Commit(conn);
 
-                    bulk.Setup<ReservedColumnNameTest>()
-                        .ForCollection(list)
+                    bulk.Setup()
+                        .ForCollection(list.ToDictionaryList())
+                        .WithPropertyTypes(typeof(ReservedColumnNameTest).ToPropertyTypes())
                         .WithTable("ReservedColumnNameTests")
                         .AddAllColumns()
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.Id)
-                        .SetIdentityColumn(x => x.Id)
+                        .MatchTargetOn("Id")
+                        .SetIdentityColumn("Id")
                         .Commit(conn);
                 }
 
@@ -1034,29 +916,30 @@ namespace SqlBulkTools.IntegrationTests
             BulkDelete(_dataAccess.GetBookList());
             var bulk = new BulkOperations();
 
-            var books = _randomizer.GetRandomCollection(30);
+            var books = _randomizer.GetRandomCollection(30).ToDictionaryList();
 
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
+                    bulk.Setup()
                         .ForCollection(books)
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType
-                        .InputOutput).Commit(conn);
+                        .MatchTargetOn("ISBN")
+                        .SetIdentityColumn("Id", ColumnDirectionType.InputOutput)
+                        .Commit(conn);
                 }
 
                 trans.Complete();
             }
 
             var test = _dataAccess.GetBookList().ElementAt(10); // Random book within the 30 elements
-            var expected = books.Single(x => x.ISBN == test.ISBN);
+            var expected = books.Single(x => (string)x["ISBN"] == test.ISBN);
 
-            Assert.Equal(expected.Id, test.Id);
+            Assert.Equal(expected["Id"], test.Id);
         }
 
         [Fact]
@@ -1075,13 +958,14 @@ namespace SqlBulkTools.IntegrationTests
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
+                    bulk.Setup()
+                        .ForCollection(books.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id)
+                        .MatchTargetOn("ISBN")
+                        .SetIdentityColumn("Id")
                         .Commit(conn);
                 }
 
@@ -1120,12 +1004,13 @@ namespace SqlBulkTools.IntegrationTests
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
                     // Insert initial list
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
+                    bulk.Setup()
+                        .ForCollection(books.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkInsert()
-                        .SetIdentityColumn(x => x.Id)
+                        .SetIdentityColumn("Id")
                         .Commit(conn);
 
                     // Update list with new dates
@@ -1138,14 +1023,15 @@ namespace SqlBulkTools.IntegrationTests
                     // Insert a random record
                     books.Add(new Book() { CreatedAt = updatedDate, ModifiedAt = updatedDate, Price = 29.99M, Title = "Trump likes woman", ISBN = "1234567891011" });
 
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
+                    bulk.Setup()
+                        .ForCollection(books.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns() // Both ModifiedAt and CreatedAt are added implicitly here
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id)
-                        .ExcludeColumnFromUpdate(x => x.CreatedAt) // Insert or update with new dates but ignore created date. 
+                        .MatchTargetOn("ISBN")
+                        .SetIdentityColumn("Id")
+                        .ExcludeColumnFromUpdate("CreatedAt") // Insert or update with new dates but ignore created date. 
                         .Commit(conn);
                 }
 
@@ -1167,22 +1053,23 @@ namespace SqlBulkTools.IntegrationTests
             BulkDelete(_dataAccess.GetBookList());
             var bulk = new BulkOperations();
 
-            var books = _randomizer.GetRandomCollection(30);
+            var books = _randomizer.GetRandomCollection(30).ToDictionaryList();
 
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
+                    bulk.Setup()
                         .ForCollection(books)
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.Title)
-                        .AddColumn(x => x.Price)
+                        .AddColumn("ISBN")
+                        .AddColumn("Description")
+                        .AddColumn("Title")
+                        .AddColumn("Price")
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
+                        .MatchTargetOn("ISBN")
+                        .SetIdentityColumn("Id", ColumnDirectionType.InputOutput)
                         .Commit(conn);
                 }
 
@@ -1190,9 +1077,9 @@ namespace SqlBulkTools.IntegrationTests
             }
 
             var test = _dataAccess.GetBookList().ElementAt(10); // Random book within the 30 elements
-            var expected = books.Single(x => x.ISBN == test.ISBN);
+            var expected = books.Single(x => (string)x["ISBN"] == test.ISBN);
 
-            Assert.Equal(expected.Id, test.Id);
+            Assert.Equal(expected["Id"], test.Id);
         }
 
         [Fact]
@@ -1201,25 +1088,27 @@ namespace SqlBulkTools.IntegrationTests
             BulkDelete(_dataAccess.GetBookList());
 
             var bulk = new BulkOperations();
-            var books = _randomizer.GetRandomCollection(30);
+            var books = _randomizer.GetRandomCollection(30).ToDictionaryList();
 
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(_randomizer.GetRandomCollection(60))
+                    bulk.Setup()
+                        .ForCollection(_randomizer.GetRandomCollection(60).ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkInsert()
                         .Commit(conn);
 
-                    bulk.Setup<Book>()
+                    bulk.Setup()
                         .ForCollection(books)
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkInsert()
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
+                        .SetIdentityColumn("Id", ColumnDirectionType.InputOutput)
                         .Commit(conn);
                 }
 
@@ -1227,40 +1116,39 @@ namespace SqlBulkTools.IntegrationTests
             }
 
             var test = _dataAccess.GetBookList().ElementAt(80); // Random between random items before test and total items after test. 
-            var expected = books.Single(x => x.ISBN == test.ISBN);
+            var expected = books.Single(x => (string)x["ISBN"] == test.ISBN);
 
-            Assert.Equal(expected.Id, test.Id);
+            Assert.Equal(expected["Id"], test.Id);
         }
-
-
 
         [Fact]
         public void SqlBulkTools_BulkInsertWithSelectedColumns_TestIdentityOutput()
         {
             BulkDelete(_dataAccess.GetBookList());
 
-            var books = _randomizer.GetRandomCollection(30);
+            var books = _randomizer.GetRandomCollection(30).ToDictionaryList();
 
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
                     var bulk = new BulkOperations();
-                    bulk.Setup<Book>()
+                    bulk.Setup()
                         .ForCollection(books)
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .WithBulkCopySettings(new BulkCopySettings()
                         {
                             BatchSize = 5000
                         })
-                        .AddColumn(x => x.Title)
-                        .AddColumn(x => x.Price)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.PublishDate)
+                        .AddColumn("Title")
+                        .AddColumn("Price")
+                        .AddColumn("Description")
+                        .AddColumn("ISBN")
+                        .AddColumn("PublishDate")
                         .BulkInsert()
                         .TmpDisableAllNonClusteredIndexes()
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
+                        .SetIdentityColumn("Id", ColumnDirectionType.InputOutput)
                         .Commit(conn);
                 }
 
@@ -1268,64 +1156,53 @@ namespace SqlBulkTools.IntegrationTests
             }
 
             var actual = _dataAccess.GetBookList().ElementAt(15); // Random book within the 30 elements
-            var expected = books.Single(x => x.ISBN == actual.ISBN);
+            var expected = books.Single(x => (string)x["ISBN"] == actual.ISBN);
 
-            Assert.Equal(expected.Id, actual.Id);
-            Assert.Equal(expected.Title, actual.Title);
-            Assert.Equal(expected.Price, actual.Price);
-            Assert.Equal(expected.Description, actual.Description);
-            Assert.Equal(expected.ISBN, actual.ISBN);
+            Assert.Equal(expected["Id"], actual.Id);
+            Assert.Equal(expected["Title"], actual.Title);
+            Assert.Equal(expected["Price"], actual.Price);
+            Assert.Equal(expected["Description"], actual.Description);
+            Assert.Equal(expected["ISBN"], actual.ISBN);
         }
 
         [Fact]
         public void SqlBulkTools_BulkDeleteWithSelectedColumns_TestIdentityOutput()
         {
-
             BulkDelete(_dataAccess.GetBookList());
-
-            //using (
-            //    var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["SqlBulkToolsTest"].ConnectionString)
-            //    )
-            //using (var command = new SqlCommand(
-            //    "DBCC CHECKIDENT ('[dbo].[Books]', RESEED, 10);", conn)
-            //{
-            //    CommandType = CommandType.Text
-            //})
-            //{
-            //    conn.Open();
-            //    command.ExecuteNonQuery();
-            //}
 
             _dataAccess.ReseedBookIdentity(10);
 
             var books = _randomizer.GetRandomCollection(30);
             BulkInsert(books);
 
+            var bookdicts = books.ToDictionaryList();
+
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
                     var bulk = new BulkOperations();
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
+                    bulk.Setup()
+                        .ForCollection(bookdicts)
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .WithBulkCopySettings(new BulkCopySettings()
                         {
                             BatchSize = 5000
                         })
-                        .AddColumn(x => x.ISBN)
+                        .AddColumn("ISBN")
                         .BulkDelete()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
+                        .MatchTargetOn("ISBN")
+                        .SetIdentityColumn("Id", ColumnDirectionType.InputOutput)
                         .Commit(conn);
                 }
 
                 trans.Complete();
             }
 
-            var test = books.First();
+            var test = bookdicts.First();
 
-            Assert.True(test.Id == 10 || test.Id == 11);
+            Assert.True((int)test["Id"] == 10 || (int)test["Id"] == 11);
 
             // Reset identity seed back to default
             _dataAccess.ReseedBookIdentity(0);
@@ -1341,20 +1218,23 @@ namespace SqlBulkTools.IntegrationTests
             var books = _randomizer.GetRandomCollection(30);
             BulkInsert(books);
 
+            var bookdicts = books.ToDictionaryList();
+
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
+                    bulk.Setup()
+                        .ForCollection(bookdicts)
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.Title)
-                        .AddColumn(x => x.Price)
+                        .AddColumn("ISBN")
+                        .AddColumn("Description")
+                        .AddColumn("Title")
+                        .AddColumn("Price")
                         .BulkUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
+                        .MatchTargetOn("ISBN")
+                        .SetIdentityColumn("Id", ColumnDirectionType.InputOutput)
                         .Commit(conn);
                 }
 
@@ -1362,9 +1242,9 @@ namespace SqlBulkTools.IntegrationTests
             }
 
             var test = _dataAccess.GetBookList().ElementAt(10); // Random book within the 30 elements
-            var expected = books.Single(x => x.ISBN == test.ISBN);
+            var expected = bookdicts.Single(x => (string)x["ISBN"] == test.ISBN);
 
-            Assert.Equal(expected.Id, test.Id);
+            Assert.Equal(expected["Id"], test.Id);
         }
 
         [Fact]
@@ -1380,11 +1260,12 @@ namespace SqlBulkTools.IntegrationTests
             using (var conn = new SqlConnection(_dataAccess.ConnectionString))
             {
                 Assert.Throws<SqlBulkToolsException>(() =>
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
+                    bulk.Setup()
+                        .ForCollection(books.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.InvalidType)
+                        .AddColumn("ISBN")
+                        .AddColumn("InvalidType")
                         .BulkInsert()
                         .Commit(conn));
             }
@@ -1405,14 +1286,15 @@ namespace SqlBulkTools.IntegrationTests
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
                     bulk.Setup()
-                    .ForCollection(_bookCollection.Select(x => new { x.Description, x.ISBN, x.Id, x.Price }))
+                    .ForCollection(_bookCollection.Select(x => new { x.Description, x.ISBN, x.Id, x.Price }).ToDictionaryList())
+                    .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                     .WithTable("Books")
-                    .AddColumn(x => x.Id)
-                    .AddColumn(x => x.Description)
-                    .AddColumn(x => x.ISBN)
-                    .AddColumn(x => x.Price)
+                    .AddColumn("Id")
+                    .AddColumn("Description")
+                    .AddColumn("ISBN")
+                    .AddColumn("Price")
                     .BulkInsert()
-                    .SetIdentityColumn(x => x.Id)
+                    .SetIdentityColumn("Id")
                     .Commit(conn);
                 }
 
@@ -1420,545 +1302,6 @@ namespace SqlBulkTools.IntegrationTests
             }
 
             Assert.True(_dataAccess.GetBookList().Any());
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkInsertWithoutSetter_ThrowsMeaningfulException()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            _bookCollection = _randomizer.GetRandomCollection(30);
-
-            using var trans = new TransactionScope();
-
-            using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-            {
-                Assert.Throws<SqlBulkToolsException>(() =>
-                    bulk.Setup()
-                        .ForCollection(
-                            _bookCollection.Select(
-                                x => new { x.Description, x.ISBN, x.Id, x.Price }))
-                        .WithTable("Books")
-                        .AddColumn(x => x.Id)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.Price)
-                        .BulkInsert()
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
-                        .Commit(conn));
-            }
-
-            trans.Complete();
-
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkInsertOrUpdateWithPrivateIdentityField_ThrowsMeaningfulException()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-            var booksWithPrivateIdentity = new List<BookWithPrivateIdentity>();
-
-            books.ForEach(x => booksWithPrivateIdentity.Add(new BookWithPrivateIdentity()
-            {
-                ISBN = x.ISBN,
-                Description = x.Description,
-                Price = x.Price
-
-            }));
-
-            using var trans = new TransactionScope();
-
-            using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-            {
-                Assert.Throws<SqlBulkToolsException>(() =>
-                    bulk.Setup<BookWithPrivateIdentity>()
-                        .ForCollection(booksWithPrivateIdentity)
-                        .WithTable("Books")
-                        .AddColumn(x => x.Id)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.Price)
-                        .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
-                        .Commit(conn));
-            }
-
-            trans.Complete();
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkInsertOrUpdateWithDeletePredicate_OnlyDeletesRecordsFromSpecifiedWarehouse()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            for (var i = 0; i < books.Count; i++)
-            {
-                books[i].WarehouseId = i > books.Count / 2 - 1 ? 1 : 2;
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    books = _randomizer.GetRandomCollection(30);
-
-                    for (var i = 0; i < books.Count; i++)
-                    {
-                        books[i].WarehouseId = i > books.Count / 2 - 1 ? 1 : 2;
-                    }
-
-                    // Only delete if WarehouseId is 1
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .DeleteWhen(x => x.WarehouseId == 1)
-                        .SetIdentityColumn(x => x.Id)
-                        .Commit(conn);
-
-                }
-
-                trans.Complete();
-            }
-
-            // 15 were initially added with warehouse id 2, 15 more were added in second insert. 
-            Assert.Equal(30, _dataAccess.GetBookList().Count(x => x.WarehouseId == 2));
-
-            // 15 were initially added with warehouse id 1. 15 were deleted in second call and 15 were inserted.  
-            Assert.Equal(15, _dataAccess.GetBookList().Count(x => x.WarehouseId == 1));
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkUpdateWithPredicate_OnlyUpdateWhenWarehouseIs1()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            for (var i = 0; i < books.Count; i++)
-            {
-                books[i].WarehouseId = i > books.Count / 2 - 1 ? 1 : 2;
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    for (var i = 0; i < books.Count; i++)
-                    {
-                        books[i].Price = 99999999;
-                    }
-
-                    // Only update if warehouse is 1
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id)
-                        .UpdateWhen(x => x.WarehouseId == 1)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            Assert.Equal(99999999, _dataAccess.GetBookList().First(x => x.WarehouseId == 1).Price);
-            Assert.NotEqual(99999999, _dataAccess.GetBookList().First(x => x.WarehouseId == 2).Price);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkUpdateWithPredicate_WhenBestSellerTrue()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            books[17].BestSeller = true;
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    books[17].Price = 1234567;
-
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id)
-                        .UpdateWhen(x => x.BestSeller == true)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            var isbn = books[17].ISBN;
-
-            Assert.Equal(1234567, _dataAccess.GetBookList(isbn).First().Price);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkUpdateWithPredicate_WhenBestSellerFalse()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            foreach (var book in books)
-            {
-                book.BestSeller = true;
-            }
-
-            books[17].BestSeller = false;
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    books[17].Price = 1234567;
-
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .SetIdentityColumn(x => x.Id)
-                        .UpdateWhen(x => x.BestSeller == false)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            var isbn = books[17].ISBN;
-
-            Assert.Equal(1234567, _dataAccess.GetBookList(isbn).First().Price);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkUpdateWithPredicate_OnlyUpdateWhenPriceLessThanOrEqualTo20()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            for (var i = 0; i < books.Count; i++)
-            {
-                books[i].Price = 21;
-            }
-
-            books[0].Price = 15;
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    books[0].Price = 17;
-
-                    // Only update if price less than or equal to 20
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddColumn(x => x.Price)
-                        .BulkUpdate()
-                        .MatchTargetOn(x => x.ISBN)
-                        .UpdateWhen(x => x.Price <= 20).Commit(conn);
-                }
-
-                trans.Complete();
-
-            }
-            var isbn = books[0].ISBN;
-
-            Assert.Equal(1, _dataAccess.GetBookList().Count(x => x.Price <= 20));
-            Assert.Equal(17, _dataAccess.GetBookList(isbn).First().Price);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkUpdateWithPredicate_OnlyDeleteWhenWarehouseIs1()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            for (var i = 0; i < books.Count; i++)
-            {
-                books[i].WarehouseId = i > books.Count / 2 - 1 ? 1 : 2;
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    // Only delete if warehouse is 1
-                    bulk.Setup()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
-                        .BulkDelete()
-                        .MatchTargetOn(x => x.ISBN)
-                        .DeleteWhen(x => x.WarehouseId == 1)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            Assert.DoesNotContain(_dataAccess.GetBookList(), x => x.WarehouseId == 1);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkDeleteWithMultiplePredicate_WhenDescriptionIsNullAndPriceMoreThan10()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            for (var i = 0; i < books.Count; i++)
-            {
-                if (i < 5)
-                {
-                    books[i].Description = null;
-                    books[i].Price = 12;
-                }
-                else
-                {
-                    books[i].Price = 30;
-                }
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    // Only delete when price more than 10 and description is null
-                    bulk.Setup()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
-                        .BulkDelete()
-                        .MatchTargetOn(x => x.ISBN)
-                        .DeleteWhen(x => x.Price > 10)
-                        .DeleteWhen(x => x.Description == null)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            Assert.Equal(25, _dataAccess.GetBookList().Count);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkDeleteWithMultiplePredicate_WhenDescriptionIsNotNullAndPriceLessThan10()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            for (var i = 0; i < books.Count; i++)
-            {
-                if (i >= 10 && i < 15)
-                {
-                    books[i].Description = null;
-                    books[i].Price = 5;
-                }
-                else
-                {
-                    books[i].Price = 9;
-                }
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    // Only delete when price more than 10 and description is null
-                    bulk.Setup()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
-                        .BulkDelete()
-                        .MatchTargetOn(x => x.ISBN)
-                        .DeleteWhen(x => x.Price < 10)
-                        .DeleteWhen(x => x.Description != null)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            Assert.Equal(5, _dataAccess.GetBookList().Count);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkUpdateWithPredicate_OnlyDeleteWhenPriceMoreThan50()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            for (var i = 0; i < books.Count; i++)
-            {
-                books[i].Price = i != 23 && i != 5 ? 51 : 32;
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .Commit(conn);
-
-                    // Only delete if price more than 50
-                    bulk.Setup()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
-                        .BulkDelete()
-                        .MatchTargetOn(x => x.ISBN)
-                        .DeleteWhen(x => x.Price > 50)
-                        .Commit(conn); ;
-                }
-
-                trans.Complete();
-            }
-
-            Assert.Equal(2, _dataAccess.GetBookList().Count);
-        }
-
-        [Fact]
-        public void SqlBulkTools_BulkUpdateWithNullablePredicate()
-        {
-            BulkDelete(_dataAccess.GetBookList());
-            var bulk = new BulkOperations();
-
-            var books = _randomizer.GetRandomCollection(30);
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    bulk.Setup<Book>()
-                        .ForCollection(books)
-                        .WithTable("Books")
-                        .AddAllColumns()
-                        .BulkInsert()
-                        .SetIdentityColumn(x => x.Id, ColumnDirectionType.InputOutput)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
-
-            using (var trans = new TransactionScope())
-            {
-                using (var conn = new SqlConnection(_dataAccess.ConnectionString))
-                {
-                    var book = new Book()
-                    {
-                        TestNullableInt = 40
-                    };
-
-                    bulk.Setup<Book>()
-                        .ForObject(new Book() { TestNullableInt = book.TestNullableInt })
-                        .WithTable("Books")
-                        .AddColumn(x => x.TestNullableInt)
-                        .Update()
-                        .Where(x => x.Id == 10)
-                        .And(x => x.TestNullableInt == book.TestNullableInt)
-                        .Commit(conn);
-                }
-
-                trans.Complete();
-            }
         }
 
         [Fact]
@@ -2012,12 +1355,13 @@ namespace SqlBulkTools.IntegrationTests
                         .AllRecords()
                         .Commit(conn);
 
-                    bulk.Setup<TestDataType>()
-                        .ForCollection(dataTypeTest)
+                    bulk.Setup()
+                        .ForCollection(dataTypeTest.ToDictionaryList())
+                        .WithPropertyTypes(typeof(TestDataType).ToPropertyTypes())
                         .WithTable("TestDataTypes")
                         .AddAllColumns()
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.GuidTest)
+                        .MatchTargetOn("GuidTest")
                         .Commit(conn);
                 }
 
@@ -2066,23 +1410,24 @@ namespace SqlBulkTools.IntegrationTests
         private long BulkInsert(IEnumerable<Book> col)
         {
             var bulk = new BulkOperations();
-            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var watch = Stopwatch.StartNew();
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .WithBulkCopySettings(new BulkCopySettings()
                         {
                             BatchSize = 5000
                         })
-                        .AddColumn(x => x.Title)
-                        .AddColumn(x => x.Price)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.PublishDate)
+                        .AddColumn("Title")
+                        .AddColumn("Price")
+                        .AddColumn("Description")
+                        .AddColumn("ISBN")
+                        .AddColumn("PublishDate")
                         .BulkInsert()
                         .TmpDisableAllNonClusteredIndexes()
                         .Commit(conn);
@@ -2099,15 +1444,16 @@ namespace SqlBulkTools.IntegrationTests
         private long BulkInsertAllColumns(IEnumerable<Book> col)
         {
             var bulk = new BulkOperations();
-            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var watch = Stopwatch.StartNew();
             using (var trans = new TransactionScope(
                                 TransactionScopeOption.RequiresNew,
                                 new TimeSpan(0, 5, 0)))
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .WithBulkCopySettings(new BulkCopySettings()
                         {
@@ -2131,21 +1477,22 @@ namespace SqlBulkTools.IntegrationTests
         private long BulkInsertOrUpdate(IEnumerable<Book> col)
         {
             var bulk = new BulkOperations();
-            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var watch = Stopwatch.StartNew();
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
-                        .AddColumn(x => x.Title)
-                        .AddColumn(x => x.Price)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.ISBN)
-                        .AddColumn(x => x.PublishDate)
+                        .AddColumn("Title")
+                        .AddColumn("Price")
+                        .AddColumn("Description")
+                        .AddColumn("ISBN")
+                        .AddColumn("PublishDate")
                         .BulkInsertOrUpdate()
-                        .MatchTargetOn(x => x.ISBN)
+                        .MatchTargetOn("ISBN")
                         .Commit(conn);
                 }
 
@@ -2161,18 +1508,19 @@ namespace SqlBulkTools.IntegrationTests
         {
             var bulk = new BulkOperations();
 
-            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var watch = Stopwatch.StartNew();
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
                         .AddAllColumns()
                         .BulkInsertOrUpdate()
-                        .SetIdentityColumn(x => x.Id)
-                        .MatchTargetOn(x => x.ISBN)
+                        .SetIdentityColumn("Id")
+                        .MatchTargetOn("ISBN")
                         .Commit(conn);
                 }
 
@@ -2192,15 +1540,16 @@ namespace SqlBulkTools.IntegrationTests
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
-                        .AddColumn(x => x.Title)
-                        .AddColumn(x => x.Price)
-                        .AddColumn(x => x.Description)
-                        .AddColumn(x => x.PublishDate)
+                        .AddColumn("Title")
+                        .AddColumn("Price")
+                        .AddColumn("Description")
+                        .AddColumn("PublishDate")
                         .BulkUpdate()
-                        .MatchTargetOn(x => x.ISBN)
+                        .MatchTargetOn("ISBN")
                         .Commit(conn);
                 }
 
@@ -2216,17 +1565,18 @@ namespace SqlBulkTools.IntegrationTests
         {
             var bulk = new BulkOperations();
 
-            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var watch = Stopwatch.StartNew();
             using (var trans = new TransactionScope())
             {
                 using (var conn = new SqlConnection(_dataAccess.ConnectionString))
                 {
-                    bulk.Setup<Book>()
-                        .ForCollection(col)
+                    bulk.Setup()
+                        .ForCollection(col.ToDictionaryList())
+                        .WithPropertyTypes(typeof(Book).ToPropertyTypes())
                         .WithTable("Books")
-                        .AddColumn(x => x.ISBN)
+                        .AddColumn("ISBN")
                         .BulkDelete()
-                        .MatchTargetOn(x => x.ISBN)
+                        .MatchTargetOn("ISBN")
                         .Commit(conn);
                 }
 
