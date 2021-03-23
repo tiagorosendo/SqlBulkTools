@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -10,6 +11,7 @@ namespace SqlBulkTools
     public class SetupDataTable<T>
     {
         private readonly DataTableOperations _ext;
+        private Dictionary<string, Type> _propTypes;
 
         /// <summary>
         /// 
@@ -20,6 +22,12 @@ namespace SqlBulkTools
             _ext = ext;
         }
 
+        public SetupDataTable<T> WithPropertyTypes(Dictionary<string, Type> propTypes)
+        {
+            this._propTypes = propTypes;
+            return this;
+        }
+
         /// <summary>
         /// Supply the collection that you want a DataTable generated for.
         /// </summary>
@@ -27,7 +35,7 @@ namespace SqlBulkTools
         /// <returns></returns>
         public DataTableColumns<T> ForCollection(IEnumerable<T> list)
         {
-            return new DataTableColumns<T>(list, _ext);
+            return new DataTableColumns<T>(list, _propTypes, _ext);
         }
     }
 }

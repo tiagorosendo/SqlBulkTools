@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -27,7 +28,7 @@ namespace SqlBulkTools
         private readonly HashSet<string> _excludeFromUpdate;
         private ColumnDirectionType _outputIdentity;
         private readonly Dictionary<string, string> _collationColumnDic;
-        private readonly List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropInfo> _propertyInfoList;
 
         /// <summary>
         ///
@@ -40,7 +41,7 @@ namespace SqlBulkTools
         /// <param name="sqlParams"></param>
         /// <param name="propertyInfoList"></param>
         public QueryUpsertReady(T singleEntity, string tableName, string schema, HashSet<string> columns, Dictionary<string, string> customColumnMappings,
-            List<SqlParameter> sqlParams, List<PropertyInfo> propertyInfoList)
+            List<SqlParameter> sqlParams, List<PropInfo> propertyInfoList)
         {
             _singleEntity = singleEntity;
             _tableName = tableName;
@@ -171,6 +172,14 @@ namespace SqlBulkTools
             return Commit((SqlConnection)connection, (SqlTransaction)transaction);
         }
 
+        public Task<int> CommitAsync(IDbConnection connection, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+        {
+            if (connection is SqlConnection == false)
+                throw new ArgumentException("Parameter must be a SqlConnection instance");
+
+            return CommitAsync((SqlConnection)connection, (SqlTransaction)transaction, cancellationToken);
+        }
+
         /// <summary>
         /// Commits a transaction to database. A valid setup must exist for the operation to be
         /// successful.
@@ -257,7 +266,7 @@ namespace SqlBulkTools
         /// <returns></returns>
         /// <exception cref="NullReferenceException"></exception>
         /// <exception cref="IdentityException"></exception>
-        public async Task<int> CommitAsync(SqlConnection conn, SqlTransaction transaction)
+        public async Task<int> CommitAsync(SqlConnection conn, SqlTransaction transaction, CancellationToken cancellationToken)
         {
             int affectedRows = 0;
             if (_singleEntity == null)
@@ -274,7 +283,7 @@ namespace SqlBulkTools
                 BulkOperationsHelper.DoColumnMappings(_customColumnMappings, _columns);
 
                 if (conn.State == ConnectionState.Closed)
-                    await conn.OpenAsync();
+                    await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
                 SqlCommand command = conn.CreateCommand();
                 command.Connection = conn;
@@ -289,7 +298,7 @@ namespace SqlBulkTools
                     command.Parameters.AddRange(_sqlParams.ToArray());
                 }
 
-                affectedRows = await command.ExecuteNonQueryAsync();
+                affectedRows = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                 if (_outputIdentity == ColumnDirectionType.InputOutput)
                 {

@@ -1,7 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
+﻿using System;
+using System.Collections.Generic;
 using SqlBulkTools.BulkCopy;
 
 // ReSharper disable once CheckNamespace
@@ -15,6 +13,7 @@ namespace SqlBulkTools
     {
         private readonly BulkOperations bulk;
         private readonly IEnumerable<T> _list;
+        private Dictionary<string, Type> _propTypes;
 
         /// <summary>
         /// 
@@ -26,6 +25,12 @@ namespace SqlBulkTools
             _list = list;
         }
 
+        public BulkForCollection<T> WithPropertyTypes(Dictionary<string, Type> propTypes)
+        {
+            this._propTypes = propTypes;
+            return this;
+        }
+
         /// <summary>
         /// Set the name of table for operation to take place. Registering a table is Required.
         /// </summary>
@@ -34,7 +39,7 @@ namespace SqlBulkTools
         public BulkTable<T> WithTable(string tableName)
         {
             var table = BulkOperationsHelper.GetTableAndSchema(tableName);
-            return new BulkTable<T>(bulk, _list, table.Name, table.Schema);
+            return new BulkTable<T>(bulk, _list, _propTypes, table.Name, table.Schema);
         }
     }
 }

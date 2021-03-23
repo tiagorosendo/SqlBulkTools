@@ -6,6 +6,7 @@ using System.Data.SqlClient;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SqlBulkTools.QueryOperations
@@ -24,7 +25,7 @@ namespace SqlBulkTools.QueryOperations
         private string _identityColumn;
         private ColumnDirectionType _outputIdentity;
         private readonly List<SqlParameter> _sqlParams;
-        private readonly List<PropertyInfo> _propertyInfoList;
+        private readonly List<PropInfo> _propertyInfoList;
 
         /// <summary>
         ///
@@ -37,7 +38,7 @@ namespace SqlBulkTools.QueryOperations
         /// <param name="sqlParams"></param>
         /// <param name="propertyInfoList"></param>
         public QueryInsertReady(T singleEntity, string tableName, string schema, HashSet<string> columns, Dictionary<string, string> customColumnMappings,
-            List<SqlParameter> sqlParams, List<PropertyInfo> propertyInfoList)
+            List<SqlParameter> sqlParams, List<PropInfo> propertyInfoList)
         {
             _singleEntity = singleEntity;
             _tableName = tableName;
@@ -110,6 +111,14 @@ namespace SqlBulkTools.QueryOperations
                 throw new ArgumentException("Parameter must be a SqlConnection instance");
 
             return Commit((SqlConnection)connection, (SqlTransaction)transaction);
+        }
+
+        public Task<int> CommitAsync(IDbConnection connection, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+        {
+            if (connection is SqlConnection == false)
+                throw new ArgumentException("Parameter must be a SqlConnection instance");
+
+            return CommitAsync((SqlConnection)connection, (SqlTransaction)transaction, cancellationToken);
         }
 
         /// <summary>
@@ -199,7 +208,7 @@ namespace SqlBulkTools.QueryOperations
         /// <param name="connection"></param>
         /// <returns></returns>
         /// <exception cref="IdentityException"></exception>
-        public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
+        public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction, CancellationToken cancellationToken)
         {
             int affectedRows = 0;
             if (_singleEntity == null)
@@ -208,7 +217,7 @@ namespace SqlBulkTools.QueryOperations
             }
 
             if (connection.State != ConnectionState.Open)
-                await connection.OpenAsync();
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -239,7 +248,7 @@ namespace SqlBulkTools.QueryOperations
                     command.Parameters.AddRange(_sqlParams.ToArray());
                 }
 
-                affectedRows = await command.ExecuteNonQueryAsync();
+                affectedRows = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                 if (_outputIdentity == ColumnDirectionType.InputOutput)
                 {

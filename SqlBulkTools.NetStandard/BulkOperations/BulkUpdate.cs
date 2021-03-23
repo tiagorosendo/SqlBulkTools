@@ -5,7 +5,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -30,7 +30,7 @@ namespace SqlBulkTools
         /// <param name="bulkCopySettings"></param>
         /// <param name="propertyInfoList"></param>
         public BulkUpdate(BulkOperations bulk, IEnumerable<T> list, string tableName, string schema, HashSet<string> columns,
-            Dictionary<string, string> customColumnMappings, BulkCopySettings bulkCopySettings, List<PropertyInfo> propertyInfoList)
+            Dictionary<string, string> customColumnMappings, BulkCopySettings bulkCopySettings, List<PropInfo> propertyInfoList)
             :
             base(bulk, list, tableName, schema, columns, customColumnMappings, bulkCopySettings, propertyInfoList)
         {
@@ -62,16 +62,40 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
-        public BulkUpdate<T> MatchTargetOn(Expression<Func<T, object>> columnName)
+        public BulkUpdate<T> MatchTargetOn(string columnName)
         {
-            var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
+            if (string.IsNullOrWhiteSpace(columnName))
+                throw new ArgumentNullException(nameof(columnName));
 
-            if (propertyName == null)
-                throw new SqlBulkToolsException("MatchTargetOn column name can't be null.");
-
-            _matchTargetOn.Add(propertyName);
+            _matchTargetOn.Add(columnName);
 
             return this;
+        }
+
+        /// <summary>
+        /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
+        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// for matching composite relationships.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <returns></returns>
+        public BulkUpdate<T> MatchTargetOn(Expression<Func<T, object>> columnName)
+        {
+            return MatchTargetOn(BulkOperationsHelper.GetPropertyName(columnName));
+        }
+
+        /// <summary>
+        /// At least one MatchTargetOn is required for correct configuration. MatchTargetOn is the matching clause for evaluating
+        /// each row in table. This is usally set to the unique identifier in the table (e.g. Id). Multiple MatchTargetOn members are allowed
+        /// for matching composite relationships.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <param name="collation">Only explicitly set the collation if there is a collation conflict.</param>
+        /// <returns></returns>
+        public BulkUpdate<T> MatchTargetOn(string columnName, string collation)
+        {
+            SetCollation(columnName, collation);
+            return MatchTargetOn(columnName);
         }
 
         /// <summary>
@@ -84,14 +108,18 @@ namespace SqlBulkTools
         /// <returns></returns>
         public BulkUpdate<T> MatchTargetOn(Expression<Func<T, object>> columnName, string collation)
         {
-            var propertyName = BulkOperationsHelper.GetPropertyName(columnName);
+            return MatchTargetOn(BulkOperationsHelper.GetPropertyName(columnName), collation);
+        }
 
-            if (propertyName == null)
-                throw new NullReferenceException("MatchTargetOn column name can't be null.");
-
-            _matchTargetOn.Add(propertyName);
-            base.SetCollation(propertyName, collation);
-
+        /// <summary>
+        /// Sets the identity column for the table. Required if an Identity column exists in table and one of the two
+        /// following conditions is met: (1) MatchTargetOn list contains an identity column (2) AddAllColumns is used in setup.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <returns></returns>
+        public BulkUpdate<T> SetIdentityColumn(string columnName)
+        {
+            base.SetIdentity(columnName);
             return this;
         }
 
@@ -104,6 +132,19 @@ namespace SqlBulkTools
         public BulkUpdate<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
         {
             base.SetIdentity(columnName);
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the identity column for the table. Required if an Identity column exists in table and one of the two
+        /// following conditions is met: (1) MatchTargetOn list contains an identity column (2) AddAllColumns is used in setup.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <param name="outputIdentity"></param>
+        /// <returns></returns>
+        public BulkUpdate<T> SetIdentityColumn(string columnName, ColumnDirectionType outputIdentity)
+        {
+            base.SetIdentity(columnName, outputIdentity);
             return this;
         }
 
@@ -137,6 +178,14 @@ namespace SqlBulkTools
                 throw new ArgumentException("Parameter must be a SqlConnection instance");
 
             return Commit((SqlConnection)connection, (SqlTransaction)transaction);
+        }
+
+        public Task<int> CommitAsync(IDbConnection connection, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+        {
+            if (connection is SqlConnection == false)
+                throw new ArgumentException("Parameter must be a SqlConnection instance");
+
+            return CommitAsync((SqlConnection)connection, (SqlTransaction)transaction, cancellationToken);
         }
 
         /// <summary>
@@ -206,7 +255,7 @@ namespace SqlBulkTools
 
                 if (_outputIdentity == ColumnDirectionType.InputOutput)
                 {
-                    BulkOperationsHelper.LoadFromTmpOutputTable(command, _identityColumn, _outputIdentityDic, OperationType.InsertOrUpdate, _list);
+                    BulkOperationsHelper.LoadFromTmpOutputTable(command, _propertyInfoList, _identityColumn, _outputIdentityDic, OperationType.InsertOrUpdate, _list);
                 }
 
                 return affectedRows;
@@ -233,7 +282,7 @@ namespace SqlBulkTools
         /// <param name="connection"></param>
         /// <returns></returns>
         /// <exception cref="IdentityException"></exception>
-        public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
+        public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction, CancellationToken cancellationToken)
         {
             int affectedRows = 0;
             if (!_list.Any())
@@ -251,7 +300,7 @@ namespace SqlBulkTools
             BulkOperationsHelper.DoColumnMappings(_customColumnMappings, _updatePredicates);
 
             if (connection.State == ConnectionState.Closed)
-                await connection.OpenAsync();
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             var dtCols = BulkOperationsHelper.GetDatabaseSchema(bulk, connection, _schema, _tableName);
 
@@ -266,10 +315,10 @@ namespace SqlBulkTools
 
                 //Creating temp table on database
                 command.CommandText = BulkOperationsHelper.BuildCreateTempTable(_columns, dtCols, _outputIdentity);
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                 //Bulk insert into temp table
-                BulkOperationsHelper.InsertToTmpTable(connection, dt, _bulkCopySettings, transaction);
+                await BulkOperationsHelper.InsertToTmpTableAsync(connection, dt, _bulkCopySettings, transaction, cancellationToken).ConfigureAwait(false);
 
                 string comm = BulkOperationsHelper.GetOutputCreateTableCmd(_outputIdentity, Constants.TempOutputTableName,
                 OperationType.InsertOrUpdate, _identityColumn);
@@ -277,7 +326,7 @@ namespace SqlBulkTools
                 if (!string.IsNullOrWhiteSpace(comm))
                 {
                     command.CommandText = comm;
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 comm = GetCommand(connection);
@@ -289,11 +338,11 @@ namespace SqlBulkTools
                     command.Parameters.AddRange(_parameters.ToArray());
                 }
 
-                affectedRows = await command.ExecuteNonQueryAsync();
+                affectedRows = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                 if (_outputIdentity == ColumnDirectionType.InputOutput)
                 {
-                    BulkOperationsHelper.LoadFromTmpOutputTable(command, _identityColumn, _outputIdentityDic, OperationType.InsertOrUpdate, _list);
+                    await BulkOperationsHelper.LoadFromTmpOutputTableAsync(command, _propertyInfoList, _identityColumn, _outputIdentityDic, OperationType.InsertOrUpdate, _list, cancellationToken).ConfigureAwait(false);
                 }
 
                 return affectedRows;

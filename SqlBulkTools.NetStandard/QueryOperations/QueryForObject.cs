@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 
 namespace SqlBulkTools.QueryOperations
@@ -11,6 +12,7 @@ namespace SqlBulkTools.QueryOperations
     {
         private readonly T _entity;
         private readonly List<SqlParameter> _sqlParams;
+        private Dictionary<string, Type> _propTypes;
 
         /// <summary>
         /// 
@@ -23,6 +25,12 @@ namespace SqlBulkTools.QueryOperations
             _sqlParams = sqlParams;
         }
 
+        public QueryForObject<T> WithPropertyTypes(Dictionary<string, Type> propTypes)
+        {
+            this._propTypes = propTypes;
+            return this;
+        }
+
         /// <summary>
         /// Set the name of table for operation to take place. Registering a table is Required.
         /// </summary>
@@ -31,7 +39,7 @@ namespace SqlBulkTools.QueryOperations
         public QueryTable<T> WithTable(string tableName)
         {
             var table = BulkOperationsHelper.GetTableAndSchema(tableName);
-            return new QueryTable<T>(_entity, table.Name, table.Schema, _sqlParams);
+            return new QueryTable<T>(_entity, _propTypes, table.Name, table.Schema, _sqlParams);
         }
     }
 }

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
-using System.Reflection;
 
 // ReSharper disable once CheckNamespace
 namespace SqlBulkTools
@@ -14,7 +13,7 @@ namespace SqlBulkTools
     public class DataTableSingularColumnSelect<T> : DataTableAbstractColumnSelect<T>, IDataTableTransaction
     {
         private Dictionary<string, int> _ordinalDic;
-        private List<PropertyInfo> _propertyInfoList;
+        private List<PropInfo> _propertyInfoList;
 
         /// <summary>
         /// 
@@ -24,7 +23,7 @@ namespace SqlBulkTools
         /// <param name="columns"></param>
         /// <param name="ordinalDic"></param>
         /// <param name="propertyInfoList"></param>
-        public DataTableSingularColumnSelect(DataTableOperations ext, IEnumerable<T> list, HashSet<string> columns, Dictionary<string, int> ordinalDic, List<PropertyInfo> propertyInfoList) : base(ext, list, columns)
+        public DataTableSingularColumnSelect(DataTableOperations ext, IEnumerable<T> list, HashSet<string> columns, Dictionary<string, int> ordinalDic, List<PropInfo> propertyInfoList) : base(ext, list, columns)
         {
             _ordinalDic = ordinalDic;
             _propertyInfoList = propertyInfoList;

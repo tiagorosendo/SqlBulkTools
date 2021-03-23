@@ -18,7 +18,7 @@ namespace SqlBulkTools
         protected HashSet<string> _columns;
         protected bool _disableAllIndexes;
         protected BulkCopySettings _bulkCopySettings;
-        protected List<PropertyInfo> _propertyInfoList;
+        protected List<PropInfo> _propertyInfoList;
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member   
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace SqlBulkTools
         /// <param name="schema"></param>
         /// <param name="bulkCopySettings"></param>
         /// <param name="propertyInfoList"></param>
-        protected AbstractColumnSelection(BulkOperations bulk, IEnumerable<T> list, string tableName, HashSet<string> columns, Dictionary<string, string> customColumnMappings, string schema, BulkCopySettings bulkCopySettings, List<PropertyInfo> propertyInfoList)
+        protected AbstractColumnSelection(BulkOperations bulk, IEnumerable<T> list, string tableName, HashSet<string> columns, Dictionary<string, string> customColumnMappings, string schema, BulkCopySettings bulkCopySettings, List<PropInfo> propertyInfoList)
         {
             this.bulk = bulk;
             _disableAllIndexes = false;

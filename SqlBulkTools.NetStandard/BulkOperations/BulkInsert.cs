@@ -5,7 +5,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -28,7 +28,7 @@ namespace SqlBulkTools
         /// <param name="bulkCopySettings"></param>
         /// <param name="propertyInfoList"></param>
         public BulkInsert(BulkOperations bulk, IEnumerable<T> list, string tableName, string schema, HashSet<string> columns,
-            Dictionary<string, string> customColumnMappings, BulkCopySettings bulkCopySettings, List<PropertyInfo> propertyInfoList) :
+            Dictionary<string, string> customColumnMappings, BulkCopySettings bulkCopySettings, List<PropInfo> propertyInfoList) :
 
             base(bulk, list, tableName, schema, columns, customColumnMappings, bulkCopySettings, propertyInfoList)
         { }
@@ -39,9 +39,34 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="columnName"></param>
         /// <returns></returns>
+        public BulkInsert<T> SetIdentityColumn(string columnName)
+        {
+            base.SetIdentity(columnName);
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the identity column for the table. Required if an Identity column exists in table and one of the two
+        /// following conditions is met: (1) MatchTargetOn list contains an identity column (2) AddAllColumns is used in setup.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <returns></returns>
         public BulkInsert<T> SetIdentityColumn(Expression<Func<T, object>> columnName)
         {
             base.SetIdentity(columnName);
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the identity column for the table. Required if an Identity column exists in table and one of the two
+        /// following conditions is met: (1) MatchTargetOn list contains an identity column (2) AddAllColumns is used in setup.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <param name="outputIdentity"></param>
+        /// <returns></returns>
+        public BulkInsert<T> SetIdentityColumn(string columnName, ColumnDirectionType outputIdentity)
+        {
+            base.SetIdentity(columnName, outputIdentity);
             return this;
         }
 
@@ -75,6 +100,14 @@ namespace SqlBulkTools
                 throw new ArgumentException("Parameter must be a SqlConnection instance");
 
             return Commit((SqlConnection)connection, (SqlTransaction)transaction);
+        }
+
+        public Task<int> CommitAsync(IDbConnection connection, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+        {
+            if (connection is SqlConnection == false)
+                throw new ArgumentException("Parameter must be a SqlConnection instance");
+
+            return CommitAsync((SqlConnection)connection, (SqlTransaction)transaction, cancellationToken);
         }
 
         public BulkInsert<T> WithTimeout(int timeout)
@@ -143,7 +176,7 @@ namespace SqlBulkTools
                         _columns, _identityColumn, _outputIdentity);
                     command.ExecuteNonQuery();
 
-                    BulkOperationsHelper.LoadFromTmpOutputTable(command, _identityColumn, _outputIdentityDic, OperationType.Insert, _list);
+                    BulkOperationsHelper.LoadFromTmpOutputTable(command, _propertyInfoList, _identityColumn, _outputIdentityDic, OperationType.Insert, _list);
                 }
                 else
                     bulkcopy.WriteToServer(dt);
@@ -168,7 +201,7 @@ namespace SqlBulkTools
         /// </summary>
         /// <param name="connection"></param>
         /// <returns></returns>
-        public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction)
+        public async Task<int> CommitAsync(SqlConnection connection, SqlTransaction transaction, CancellationToken cancellationToken)
         {
             int affectedRows = 0;
 
@@ -184,7 +217,7 @@ namespace SqlBulkTools
             BulkOperationsHelper.DoColumnMappings(_customColumnMappings, _columns, _matchTargetOn);
 
             if (connection.State != ConnectionState.Open)
-                await connection.OpenAsync();
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             DataTable dtCols = null;
             if (_outputIdentity == ColumnDirectionType.InputOutput)
@@ -206,31 +239,31 @@ namespace SqlBulkTools
                 {
                     command.CommandText = BulkOperationsHelper.GetIndexManagementCmd(Constants.Disable, _tableName,
                         _schema, connection);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 // If InputOutput identity is selected, must use staging table.
                 if (_outputIdentity == ColumnDirectionType.InputOutput && dtCols != null)
                 {
                     command.CommandText = BulkOperationsHelper.BuildCreateTempTable(_columns, dtCols, _outputIdentity);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                    BulkOperationsHelper.InsertToTmpTable(connection, dt, _bulkCopySettings, transaction);
+                    await BulkOperationsHelper.InsertToTmpTableAsync(connection, dt, _bulkCopySettings, transaction, cancellationToken).ConfigureAwait(false);
 
                     command.CommandText = BulkOperationsHelper.GetInsertIntoStagingTableCmd(connection, _schema, _tableName,
                         _columns, _identityColumn, _outputIdentity);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                    BulkOperationsHelper.LoadFromTmpOutputTable(command, _identityColumn, _outputIdentityDic, OperationType.Insert, _list);
+                    await BulkOperationsHelper.LoadFromTmpOutputTableAsync(command, _propertyInfoList, _identityColumn, _outputIdentityDic, OperationType.Insert, _list, cancellationToken).ConfigureAwait(false);
                 }
                 else
-                    await bulkcopy.WriteToServerAsync(dt);
+                    await bulkcopy.WriteToServerAsync(dt, cancellationToken).ConfigureAwait(false);
 
                 if (_disableAllIndexes)
                 {
                     command.CommandText = BulkOperationsHelper.GetIndexManagementCmd(Constants.Rebuild, _tableName,
                         _schema, connection);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 bulkcopy.Close();
