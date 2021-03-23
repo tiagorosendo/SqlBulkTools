@@ -77,14 +77,6 @@ namespace SqlBulkTools
             return Commit((SqlConnection)connection, (SqlTransaction)transaction);
         }
 
-        public Task<int> CommitAsync(IDbConnection connection, IDbTransaction transaction = null)
-        {
-            if (connection is SqlConnection == false)
-                throw new ArgumentException("Parameter must be a SqlConnection instance");
-
-            return CommitAsync((SqlConnection)connection, (SqlTransaction)transaction);
-        }
-
         public BulkInsert<T> WithTimeout(int timeout)
         {
             this._sqlTimeout = timeout;

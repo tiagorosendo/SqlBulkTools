@@ -2,7 +2,7 @@
 
 IF NOT EXISTS (SELECT name FROM master.dbo.sysdatabases WHERE name = N'SqlBulkTools')
 			BEGIN
-				CREATE DATABASE [SqlBulkTools]
+				CREATE DATABASE [SQLServerPlanet]
 			END
 GO
 

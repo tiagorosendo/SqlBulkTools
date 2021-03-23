@@ -144,14 +144,6 @@ namespace SqlBulkTools
             return Commit((SqlConnection)connection, (SqlTransaction)transaction);
         }
 
-        public Task<int> CommitAsync(IDbConnection connection, IDbTransaction transaction = null)
-        {
-            if (connection is SqlConnection == false)
-                throw new ArgumentException("Parameter must be a SqlConnection instance");
-
-            return CommitAsync((SqlConnection)connection, (SqlTransaction)transaction);
-        }
-
         /// <summary>
         /// Commits a transaction to database. A valid setup must exist for the operation to be
         /// successful.
