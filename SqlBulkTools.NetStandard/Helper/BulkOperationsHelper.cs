@@ -1,4 +1,6 @@
-﻿using System;
+﻿using SqlBulkTools.Core;
+using SqlBulkTools.Enumeration;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
@@ -11,8 +13,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using SqlBulkTools.Core;
-using SqlBulkTools.Enumeration;
 
 [assembly: InternalsVisibleTo("SqlBulkTools.UnitTests")]
 [assembly: InternalsVisibleTo("SqlBulkTools.IntegrationTests")]
@@ -32,7 +32,7 @@ namespace SqlBulkTools
             var periodCount = sb.ToString().ToCharArray().Count(x => x == '.');
 
             if (periodCount == 0)
-                return new Table {Name = tableName, Schema = Constants.DefaultSchemaName};
+                return new Table { Name = tableName, Schema = Constants.DefaultSchemaName };
 
             if (periodCount > 1)
                 throw new SqlBulkToolsException("Table name can't contain more than one period '.' character.");
@@ -297,27 +297,27 @@ namespace SqlBulkTools
                 switch (condition.PredicateType)
                 {
                     case PredicateType.Where:
-                    {
-                        command.Append(" WHERE ");
-                        break;
-                    }
+                        {
+                            command.Append(" WHERE ");
+                            break;
+                        }
 
                     case PredicateType.And:
-                    {
-                        command.Append(" AND ");
-                        break;
-                    }
+                        {
+                            command.Append(" AND ");
+                            break;
+                        }
 
                     case PredicateType.Or:
-                    {
-                        command.Append(" OR ");
-                        break;
-                    }
+                        {
+                            command.Append(" OR ");
+                            break;
+                        }
 
                     default:
-                    {
-                        throw new KeyNotFoundException("Predicate not found");
-                    }
+                        {
+                            throw new KeyNotFoundException("Predicate not found");
+                        }
                 }
 
                 command.Append(
@@ -332,41 +332,41 @@ namespace SqlBulkTools
             switch (condition.Expression)
             {
                 case ExpressionType.NotEqual:
-                {
-                    if (condition.ValueType == null)
                     {
-                        condition.Value = condition.Value?.ToUpper();
-                        return "IS NOT";
-                    }
+                        if (condition.ValueType == null)
+                        {
+                            condition.Value = condition.Value?.ToUpper();
+                            return "IS NOT";
+                        }
 
-                    return "!=";
-                }
+                        return "!=";
+                    }
                 case ExpressionType.Equal:
-                {
-                    if (condition.ValueType == null)
                     {
-                        condition.Value = condition.Value?.ToUpper();
-                        return "IS";
-                    }
+                        if (condition.ValueType == null)
+                        {
+                            condition.Value = condition.Value?.ToUpper();
+                            return "IS";
+                        }
 
-                    return "=";
-                }
+                        return "=";
+                    }
                 case ExpressionType.LessThan:
-                {
-                    return "<";
-                }
+                    {
+                        return "<";
+                    }
                 case ExpressionType.LessThanOrEqual:
-                {
-                    return "<=";
-                }
+                    {
+                        return "<=";
+                    }
                 case ExpressionType.GreaterThan:
-                {
-                    return ">";
-                }
+                    {
+                        return ">";
+                    }
                 case ExpressionType.GreaterThanOrEqual:
-                {
-                    return ">=";
-                }
+                    {
+                        return ">=";
+                    }
             }
 
             throw new SqlBulkToolsException("ExpressionType not found when trying to map logical operator.");
@@ -500,7 +500,7 @@ namespace SqlBulkTools
             {
                 case ExpressionType.Convert:
                     memberExpr =
-                        ((UnaryExpression) lambda.Body).Operand as MemberExpression;
+                        ((UnaryExpression)lambda.Body).Operand as MemberExpression;
 
                     if (memberExpr?.Expression.Type.GetCustomAttribute(typeof(ComplexTypeAttribute)) != null
                         && memberExpr.Expression is MemberExpression expression)
@@ -536,7 +536,7 @@ namespace SqlBulkTools
             foreach (var property in propertyInfoList)
             {
                 //TODO: Put some cache here.
-                
+
                 var complexTypeAttr = property.PropertyType.GetCustomAttribute(typeof(ComplexTypeAttribute));
 
                 if (complexTypeAttr != null)
@@ -574,7 +574,7 @@ namespace SqlBulkTools
 
             if (!outputIdentityCol)
                 return dataTable;
-            
+
             dataTable.Columns.Add(Constants.InternalId, typeof(int));
             var ordinal = dataTable.Columns[Constants.InternalId].Ordinal;
 
@@ -641,12 +641,12 @@ namespace SqlBulkTools
                         }
                     }
 
-                    if (column != Constants.InternalId) 
+                    if (column != Constants.InternalId)
                         continue;
-                    
-                    if (ordinalDic.TryGetValue(Constants.InternalId, out var ordinal) == false) 
+
+                    if (ordinalDic.TryGetValue(Constants.InternalId, out var ordinal) == false)
                         continue;
-                        
+
                     values[ordinal] = internalIdCounter;
                     outputIdentityDic?.Add(internalIdCounter, item);
                 }
@@ -668,7 +668,7 @@ namespace SqlBulkTools
             {
                 if (ordinalDic.TryGetValue(propertyName, out var ordinal) == false)
                     return;
-                
+
                 if (isComplex)
                 {
                     var complexType = item.GetType().GetProperty(basePropertyName);
@@ -689,45 +689,45 @@ namespace SqlBulkTools
             Dictionary<string, string> customColumns = null)
         {
             foreach (var column in columns.ToList().OrderBy(x => x))
-            foreach (var property in propertyInfoList)
-                if (property.PropertyType.GetCustomAttribute(typeof(ComplexTypeAttribute)) != null)
-                {
-                    var complexPropertyList = property.PropertyType.GetProperties();
-                    foreach (var complexProperty in complexPropertyList)
+                foreach (var property in propertyInfoList)
+                    if (property.PropertyType.GetCustomAttribute(typeof(ComplexTypeAttribute)) != null)
                     {
-                        var propertyName = $"{property.Name}_{complexProperty.Name}";
-
-                        if (propertyName == column && item != null &&
-                            CheckForValidDataType(complexProperty.PropertyType, true))
+                        var complexPropertyList = property.PropertyType.GetProperties();
+                        foreach (var complexProperty in complexPropertyList)
                         {
-                            var param = GetSqlParam<T>(complexProperty, customColumns, column);
+                            var propertyName = $"{property.Name}_{complexProperty.Name}";
 
-                            var complexType = item.GetType().GetProperty(property.Name);
-                            var value = complexType.GetValue(item, null);
+                            if (propertyName == column && item != null &&
+                                CheckForValidDataType(complexProperty.PropertyType, true))
+                            {
+                                var param = GetSqlParam<T>(complexProperty, customColumns, column);
 
-                            var propertyInfo = complexType.PropertyType.GetProperty(complexProperty.Name);
-                            var propValue = propertyInfo.GetValue(value, null);
+                                var complexType = item.GetType().GetProperty(property.Name);
+                                var value = complexType.GetValue(item, null);
 
-                            param.Value = propValue ?? DBNull.Value;
+                                var propertyInfo = complexType.PropertyType.GetProperty(complexProperty.Name);
+                                var propValue = propertyInfo.GetValue(value, null);
 
-                            sqlParameters.Add(param);
+                                param.Value = propValue ?? DBNull.Value;
+
+                                sqlParameters.Add(param);
+                            }
                         }
                     }
-                }
 
-                else if (property.Name == column && item != null && CheckForValidDataType(property.PropertyType, true))
-                {
-                    var param = GetSqlParam<T>(property, customColumns, column);
+                    else if (property.Name == column && item != null && CheckForValidDataType(property.PropertyType, true))
+                    {
+                        var param = GetSqlParam<T>(property, customColumns, column);
 
-                    var propValue = property.GetValue(item, null);
+                        var propValue = property.GetValue(item, null);
 
-                    param.Value = propValue ?? DBNull.Value;
+                        param.Value = propValue ?? DBNull.Value;
 
-                    if (column == identityColumn && direction == ColumnDirectionType.InputOutput)
-                        param.Direction = ParameterDirection.InputOutput;
+                        if (column == identityColumn && direction == ColumnDirectionType.InputOutput)
+                            param.Direction = ParameterDirection.InputOutput;
 
-                    sqlParameters.Add(param);
-                }
+                        sqlParameters.Add(param);
+                    }
         }
 
         private static SqlParameter GetSqlParam<T>(PropertyInfo property, Dictionary<string, string> customColumns,
@@ -758,8 +758,8 @@ namespace SqlBulkTools
                 type == typeof(string) ||
                 type == typeof(byte[]) ||
                 type == typeof(char[]) ||
-//                type == typeof(SqlGeometry) || TODO: Review.
-//                type == typeof(SqlGeography) ||
+                //                type == typeof(SqlGeometry) || TODO: Review.
+                //                type == typeof(SqlGeography) ||
                 type == typeof(SqlXml)
             )
                 return true;
@@ -825,9 +825,9 @@ namespace SqlBulkTools
 
         internal static void DoColumnMappings(Dictionary<string, string> columnMappings, HashSet<string> columns)
         {
-            if (columnMappings.Count <= 0) 
+            if (columnMappings.Count <= 0)
                 return;
-            
+
             foreach (var column in columnMappings)
                 if (columns.Contains(column.Key))
                 {
@@ -857,9 +857,9 @@ namespace SqlBulkTools
             bulkcopy.BatchSize = options.BatchSize;
             bulkcopy.BulkCopyTimeout = options.BulkCopyTimeout;
 
-            if (options.BulkCopyNotification == null) 
+            if (options.BulkCopyNotification == null)
                 return;
-            
+
             bulkcopy.NotifyAfter = options.BulkCopyNotification.NotifyAfter;
             bulkcopy.SqlRowsCopied += options.BulkCopyNotification.SqlRowsCopied;
         }
@@ -921,10 +921,10 @@ namespace SqlBulkTools
             string tmpTableName, OperationType operation)
         {
             var sb = new StringBuilder();
-            
-            if (identityColumn == null || outputIdentity != ColumnDirectionType.InputOutput) 
+
+            if (identityColumn == null || outputIdentity != ColumnDirectionType.InputOutput)
                 return null;
-            
+
             switch (operation)
             {
                 case OperationType.Insert:
@@ -999,13 +999,45 @@ namespace SqlBulkTools
         {
             using (var bulkcopy = new SqlBulkCopy(conn, bulkCopySettings.SqlBulkCopyOptions, transaction))
             {
-                bulkcopy.DestinationTableName = Constants.TempTableName;
+                try
+                {
 
-                SetSqlBulkCopySettings(bulkcopy, bulkCopySettings);
+                    bulkcopy.DestinationTableName = Constants.TempTableName;
 
-                foreach (var column in dt.Columns) bulkcopy.ColumnMappings.Add(column.ToString(), column.ToString());
+                    SetSqlBulkCopySettings(bulkcopy, bulkCopySettings);
 
-                bulkcopy.WriteToServer(dt);
+                    foreach (var column in dt.Columns)
+                        bulkcopy.ColumnMappings.Add(column.ToString(), column.ToString());
+
+                    bulkcopy.WriteToServer(dt);
+
+                }
+                catch (SqlException e)
+                {
+                    for (int i = 0; i < e.Errors.Count; i++)
+                    {
+                        // Error 4815 is invalid column length error.
+                        if (e.Errors[i].Number == 4815)
+                        {
+                            string pattern = @"\d+";
+                            Match match = Regex.Match(e.Message, pattern);
+                            var index = Convert.ToInt32(match.Value) - 1;
+
+                            FieldInfo fi = typeof(SqlBulkCopy).GetField("_sortedColumnMappings", BindingFlags.NonPublic | BindingFlags.Instance);
+                            if (fi is null) continue;
+                            var sortedColumns = fi.GetValue(bulkcopy);
+                            var items = (object[])sortedColumns.GetType().GetField("_items", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(sortedColumns);
+
+                            FieldInfo itemData = items?[index].GetType().GetField("_metadata", BindingFlags.NonPublic | BindingFlags.Instance);
+                            if (itemData == null) continue;
+                            var metadata = itemData.GetValue(items[index]);
+
+                            var column = metadata.GetType().GetField("column", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(metadata);
+                            var length = metadata.GetType().GetField("length", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(metadata);
+                            throw new SqlBulkToolsException($"Column {column} contains data with a length greater than {length}");
+                        }
+                    }
+                }
             }
         }
 
@@ -1131,7 +1163,7 @@ namespace SqlBulkTools
                 + "OUTPUT INSERTED.[" + identityColumn + "] INTO "
                 + Constants.TempOutputTableName + "([" + identityColumn + "]) "
                 + BuildSelectSet(columns, Constants.SourceAlias, identityColumn)
-                + " FROM " + Constants.TempTableName + " AS Source ORDER BY "+ Constants.InternalId + "; " +
+                + " FROM " + Constants.TempTableName + " AS Source ORDER BY " + Constants.InternalId + "; " +
                 "DROP TABLE " + Constants.TempTableName + ";";
 
             return comm;
@@ -1158,156 +1190,156 @@ namespace SqlBulkTools
                 throw new SqlBulkToolsException(
                     $"Expression not supported for {GetPredicateMethodName(predicateType)}");
 
-            var leftName = ((MemberExpression) binaryBody.Left).Member.Name;
+            var leftName = ((MemberExpression)binaryBody.Left).Member.Name;
 
-            if (((MemberExpression) binaryBody.Left).Expression.Type.GetCustomAttribute(typeof(ComplexTypeAttribute)) !=
+            if (((MemberExpression)binaryBody.Left).Expression.Type.GetCustomAttribute(typeof(ComplexTypeAttribute)) !=
                 null
-                && ((MemberExpression) binaryBody.Left).Expression is MemberExpression)
+                && ((MemberExpression)binaryBody.Left).Expression is MemberExpression)
                 leftName =
-                    $"{((MemberExpression) ((MemberExpression) binaryBody.Left).Expression).Member.Name}_{leftName}";
+                    $"{((MemberExpression)((MemberExpression)binaryBody.Left).Expression).Member.Name}_{leftName}";
 
             // For expression types Equal and NotEqual, it's possible for user to pass null value. This handles the null use case. 
             // SqlParameter is not added when comparison to null value is used. 
             switch (predicate.Body.NodeType)
             {
                 case ExpressionType.NotEqual:
-                {
-                    //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
-                    value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
-
-
-                    if (value != null)
                     {
-                        condition = new PredicateCondition
+                        //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
+                        value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
+
+
+                        if (value != null)
                         {
-                            Expression = ExpressionType.NotEqual,
-                            LeftName = leftName,
-                            ValueType = binaryBody.Right.Type,
-                            Value = value,
-                            PredicateType = predicateType,
-                            SortOrder = sortOrder
-                        };
+                            condition = new PredicateCondition
+                            {
+                                Expression = ExpressionType.NotEqual,
+                                LeftName = leftName,
+                                ValueType = binaryBody.Right.Type,
+                                Value = value,
+                                PredicateType = predicateType,
+                                SortOrder = sortOrder
+                            };
 
-                        var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(condition.ValueType);
+                            var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(condition.ValueType);
 
-                        var paramName = appendParam != null ? leftName + appendParam + sortOrder : leftName;
-                        var param = new SqlParameter($"@{paramName}", sqlType);
-                        param.Value = condition.Value;
-                        sqlParamsList.Add(param);
-                    }
-                    else
-                    {
-                        condition = new PredicateCondition
+                            var paramName = appendParam != null ? leftName + appendParam + sortOrder : leftName;
+                            var param = new SqlParameter($"@{paramName}", sqlType);
+                            param.Value = condition.Value;
+                            sqlParamsList.Add(param);
+                        }
+                        else
                         {
-                            Expression = ExpressionType.NotEqual,
-                            LeftName = leftName,
-                            Value = "NULL",
-                            PredicateType = predicateType,
-                            SortOrder = sortOrder
-                        };
+                            condition = new PredicateCondition
+                            {
+                                Expression = ExpressionType.NotEqual,
+                                LeftName = leftName,
+                                Value = "NULL",
+                                PredicateType = predicateType,
+                                SortOrder = sortOrder
+                            };
+                        }
+
+                        predicateList.Add(condition);
+
+
+                        break;
                     }
-
-                    predicateList.Add(condition);
-
-
-                    break;
-                }
 
                 // For expression types Equal and NotEqual, it's possible for user to pass null value. This handles the null use case. 
                 // SqlParameter is not added when comparison to null value is used. 
                 case ExpressionType.Equal:
-                {
-                    //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
-                    value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
-
-                    if (value != null)
                     {
-                        condition = new PredicateCondition
+                        //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
+                        value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
+
+                        if (value != null)
                         {
-                            Expression = ExpressionType.Equal,
-                            LeftName = leftName,
-                            ValueType = binaryBody.Right.Type,
-                            Value = value,
-                            PredicateType = predicateType,
-                            SortOrder = sortOrder
-                        };
+                            condition = new PredicateCondition
+                            {
+                                Expression = ExpressionType.Equal,
+                                LeftName = leftName,
+                                ValueType = binaryBody.Right.Type,
+                                Value = value,
+                                PredicateType = predicateType,
+                                SortOrder = sortOrder
+                            };
 
-                        var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(condition.ValueType);
-                        var paramName = appendParam != null ? leftName + appendParam + sortOrder : leftName;
-                        var param = new SqlParameter($"@{paramName}", sqlType);
-                        param.Value = condition.Value;
-                        sqlParamsList.Add(param);
-                    }
-                    else
-                    {
-                        condition = new PredicateCondition
+                            var sqlType = BulkOperationsUtility.GetSqlTypeFromDotNetType(condition.ValueType);
+                            var paramName = appendParam != null ? leftName + appendParam + sortOrder : leftName;
+                            var param = new SqlParameter($"@{paramName}", sqlType);
+                            param.Value = condition.Value;
+                            sqlParamsList.Add(param);
+                        }
+                        else
                         {
-                            Expression = ExpressionType.Equal,
-                            LeftName = leftName,
-                            Value = "NULL",
-                            PredicateType = predicateType,
-                            SortOrder = sortOrder
-                        };
+                            condition = new PredicateCondition
+                            {
+                                Expression = ExpressionType.Equal,
+                                LeftName = leftName,
+                                Value = "NULL",
+                                PredicateType = predicateType,
+                                SortOrder = sortOrder
+                            };
+                        }
+
+                        predicateList.Add(condition);
+
+                        break;
                     }
-
-                    predicateList.Add(condition);
-
-                    break;
-                }
                 case ExpressionType.LessThan:
-                {
-                    //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
-                    value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
-                    BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.LessThan, predicateList,
-                        sqlParamsList,
-                        predicateType, sortOrder, appendParam);
-                    break;
-                }
+                    {
+                        //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
+                        value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
+                        BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.LessThan, predicateList,
+                            sqlParamsList,
+                            predicateType, sortOrder, appendParam);
+                        break;
+                    }
                 case ExpressionType.LessThanOrEqual:
-                {
-                    //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
-                    value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
-                    BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.LessThanOrEqual,
-                        predicateList,
-                        sqlParamsList, predicateType, sortOrder, appendParam);
-                    break;
-                }
+                    {
+                        //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
+                        value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
+                        BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.LessThanOrEqual,
+                            predicateList,
+                            sqlParamsList, predicateType, sortOrder, appendParam);
+                        break;
+                    }
                 case ExpressionType.GreaterThan:
-                {
-                    //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
-                    value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
-                    BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.GreaterThan, predicateList,
-                        sqlParamsList, predicateType, sortOrder, appendParam);
-                    break;
-                }
+                    {
+                        //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
+                        value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
+                        BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.GreaterThan, predicateList,
+                            sqlParamsList, predicateType, sortOrder, appendParam);
+                        break;
+                    }
                 case ExpressionType.GreaterThanOrEqual:
-                {
-                    //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
-                    value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
-                    BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.GreaterThanOrEqual,
-                        predicateList,
-                        sqlParamsList, predicateType, sortOrder, appendParam);
-                    break;
-                }
+                    {
+                        //leftName = ((MemberExpression)binaryBody.Left).Member.Name;
+                        value = Expression.Lambda(binaryBody.Right).Compile().DynamicInvoke()?.ToString();
+                        BuildCondition(leftName, value, binaryBody.Right.Type, ExpressionType.GreaterThanOrEqual,
+                            predicateList,
+                            sqlParamsList, predicateType, sortOrder, appendParam);
+                        break;
+                    }
                 case ExpressionType.AndAlso:
-                {
-                    throw new SqlBulkToolsException(
-                        $"And && expression not supported for {GetPredicateMethodName(predicateType)}. " +
-                        $"Try chaining predicates instead e.g. {GetPredicateMethodName(predicateType)}." +
-                        $"{GetPredicateMethodName(predicateType)}");
-                }
+                    {
+                        throw new SqlBulkToolsException(
+                            $"And && expression not supported for {GetPredicateMethodName(predicateType)}. " +
+                            $"Try chaining predicates instead e.g. {GetPredicateMethodName(predicateType)}." +
+                            $"{GetPredicateMethodName(predicateType)}");
+                    }
                 case ExpressionType.OrElse:
-                {
-                    throw new SqlBulkToolsException(
-                        $"Or || expression not supported for {GetPredicateMethodName(predicateType)}.");
-                }
+                    {
+                        throw new SqlBulkToolsException(
+                            $"Or || expression not supported for {GetPredicateMethodName(predicateType)}.");
+                    }
 
                 default:
-                {
-                    throw new SqlBulkToolsException(
-                        $"Expression used in {GetPredicateMethodName(predicateType)} not supported. " +
-                        $"Only == != < <= > >= expressions are accepted.");
-                }
+                    {
+                        throw new SqlBulkToolsException(
+                            $"Expression used in {GetPredicateMethodName(predicateType)} not supported. " +
+                            $"Only == != < <= > >= expressions are accepted.");
+                    }
             }
         }
 
@@ -1320,7 +1352,7 @@ namespace SqlBulkTools
                 throw new SqlBulkToolsException(
                     $"Expression not supported for {GetPredicateMethodName(predicateType)}");
 
-            var leftName = ((MemberExpression) binaryBody.Left).Member.Name;
+            var leftName = ((MemberExpression)binaryBody.Left).Member.Name;
 
             if (leftName == null) throw new SqlBulkToolsException($"{columnType} can't be null");
 
